@@ -10,6 +10,15 @@ All models use the same 5-pin interface: inp, inn, out, vcc, vee
 (or appropriate variants per component type).
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import math
 import re
 from spice_models import _format_eng as _eng

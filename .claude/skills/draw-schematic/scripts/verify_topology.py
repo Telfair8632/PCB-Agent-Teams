@@ -21,6 +21,15 @@
 用法:
     python verify_topology.py <project.py>
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import ast
 import json
@@ -55,7 +64,7 @@ def parse_py_topology(py_file: Path) -> tuple[dict, dict]:
     - expected_nets: {ref: {pin: net_name}}
     - ref_to_subcircuit: {ref: subcircuit_name}
     """
-    text = py_file.read_text()
+    text = py_file.read_text(encoding="utf-8")
     tree = ast.parse(text)
 
     expected: dict[str, dict[str, str]] = {}
@@ -219,7 +228,7 @@ def export_netlist(top_sch: Path) -> Path:
     """跑 kicad-cli 出 KiCad 格式 netlist。"""
     out = top_sch.with_suffix(".net")
     cmd = [KICAD_CLI, "sch", "export", "netlist", "-o", str(out), str(top_sch)]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if not out.exists():
         raise RuntimeError(f"netlist 没生成: {result.stderr}")
     return out
@@ -227,7 +236,7 @@ def export_netlist(top_sch: Path) -> Path:
 
 def parse_netlist(net_file: Path) -> dict[str, dict[str, str]]:
     """KiCad netlist 是 sexpression（多行格式）。提取 net → (ref, pin)。"""
-    text = net_file.read_text()
+    text = net_file.read_text(encoding="utf-8")
     actual: dict[str, dict[str, str]] = defaultdict(dict)
 
     # 找 (nets ... ) 段落，里面才有 (net (code ...) (name ...) (node ...) ...)

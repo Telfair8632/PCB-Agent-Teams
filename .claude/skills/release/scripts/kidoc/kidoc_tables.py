@@ -6,6 +6,15 @@ Zero external dependencies — Python stdlib only.
 from __future__ import annotations
 
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 def markdown_table(headers: list[str], rows: list[list[str]],
                    alignments: list[str] | None = None) -> str:
     """Generate a markdown table with proper column padding.

@@ -1,3 +1,12 @@
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 from pathlib import Path
 
 from scripts.render_order_guide import render_all
@@ -53,7 +62,7 @@ def test_render_all_writes_three_files(tmp_path):
 
 def test_order_guide_substitutes_project_name(tmp_path):
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     assert "test_project" in text
     assert "rel_20260507_143012" in text
     assert "板厚 / 层数 | 1.6 mm / 4 layers" in text
@@ -61,7 +70,7 @@ def test_order_guide_substitutes_project_name(tmp_path):
 
 def test_order_guide_marks_recommended_path(tmp_path):
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     assert "Mouser JP（覆盖率 17/17） ✅ 推荐" in text
     assert "DigiKey JP（覆盖率 15/17）" in text
     assert "DigiKey JP（覆盖率 15/17） ✅ 推荐" not in text
@@ -69,7 +78,7 @@ def test_order_guide_marks_recommended_path(tmp_path):
 
 def test_coverage_matrix_lists_mpn_row(tmp_path):
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "coverage_matrix.md").read_text()
+    text = (tmp_path / "coverage_matrix.md").read_text(encoding="utf-8")
     assert "`AMC1311BDWVR`" in text
     assert "12756" in text
     assert "¥823.2" in text
@@ -86,14 +95,14 @@ def test_coverage_matrix_primary_only_banner(tmp_path):
     ctx = {**SAMPLE_CONTEXT, "coverage": {**SAMPLE_CONTEXT["coverage"],
                                           "data_source": "primary-only"}}
     render_all(ctx, tmp_path)
-    text = (tmp_path / "coverage_matrix.md").read_text()
+    text = (tmp_path / "coverage_matrix.md").read_text(encoding="utf-8")
     assert "primary winner" in text
     assert "artifact shortlist 缺失" in text
 
 
 def test_fab_options_shows_lcsc_coverage(tmp_path):
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "fab_options.md").read_text()
+    text = (tmp_path / "fab_options.md").read_text(encoding="utf-8")
     assert "LCSC 覆盖率 12/17" in text
 
 
@@ -103,7 +112,7 @@ def test_user_intent_lcsc_marks_path_a(tmp_path):
                                              "channel": "lcsc_jlcpcb",
                                              "recommended_path": "lcsc"}}
     render_all(ctx, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     assert "★ Path A" in text or "★ 你的首选" in text  # appears at Path A header
     # Path A header should carry the star
     assert "Path A：JLCPCB 一站式" in text
@@ -118,7 +127,7 @@ def test_user_intent_jp_domestic_marks_dk_mouser(tmp_path):
                                              "channel": "jp_domestic_fast",
                                              "recommended_path": "jp_domestic"}}
     render_all(ctx, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     # C-1 line carries star
     c1_idx = text.find("C-1：DigiKey JP")
     c1_line_end = text.find("\n", c1_idx)
@@ -132,14 +141,14 @@ def test_user_intent_jp_domestic_marks_dk_mouser(tmp_path):
 def test_user_intent_auto_falls_back_to_coverage_recommended(tmp_path):
     """Channel preference=auto_cheapest → 不强加 ★，依然写 coverage_scan recommended."""
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     # SAMPLE_CONTEXT has Mouser as the only fully-covered vendor
     assert "Mouser JP（覆盖率 17/17） ✅ 推荐" in text
 
 
 def test_user_intent_renders_preference_table(tmp_path):
     render_all(SAMPLE_CONTEXT, tmp_path)
-    text = (tmp_path / "ORDER_GUIDE.md").read_text()
+    text = (tmp_path / "ORDER_GUIDE.md").read_text(encoding="utf-8")
     assert "用户下单偏好" in text
     assert "balanced" in text
     assert "any" in text

@@ -140,7 +140,7 @@ def main() -> None:
     # Load analysis and merge supplemental data
     analysis = {}
     if args.analysis:
-        with open(args.analysis) as f:
+        with open(args.analysis, encoding="utf-8") as f:
             analysis = json.load(f)
 
     # If no explicit analysis path, try manifest
@@ -158,7 +158,7 @@ def main() -> None:
                 _config.get('analysis', {}).get('output_dir', 'analysis'))
             _manifest_path = os.path.join(_analysis_dir, 'manifest.json')
             if os.path.isfile(_manifest_path):
-                with open(_manifest_path) as f:
+                with open(_manifest_path, encoding="utf-8") as f:
                     _manifest = json.load(f)
                 _current_id = _manifest.get('current')
                 if _current_id:
@@ -166,20 +166,20 @@ def main() -> None:
                                              'schematic.json')
                     if os.path.isfile(_sch_path):
                         args.analysis = _sch_path
-                        with open(_sch_path) as f:
+                        with open(_sch_path, encoding="utf-8") as f:
                             analysis = json.load(f)
         except (ImportError, json.JSONDecodeError, OSError):
             pass
 
     for path in (args.emc, args.thermal, args.spice):
         if path:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 analysis.update(json.load(f))
 
     # Load config
     config = None
     if args.config:
-        with open(args.config) as f:
+        with open(args.config, encoding="utf-8") as f:
             config = json.load(f)
 
     figures_dir = os.path.abspath(args.output)

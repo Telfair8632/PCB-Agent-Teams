@@ -11,9 +11,19 @@ part isn't found, returns None and the cascade falls through to the lookup
 table.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import os
 import re
+import tempfile
 import time
 import urllib.request
 import urllib.error
@@ -245,10 +255,10 @@ def _get_digikey_token():
     if not client_id or not client_secret:
         return None
 
-    # Check token cache
-    cache_path = "/tmp/digikey_token_cache.json"
+    # Check token cache (per-user temp dir: /tmp does not exist on Windows)
+    cache_path = os.path.join(tempfile.gettempdir(), "digikey_token_cache.json")
     try:
-        with open(cache_path) as f:
+        with open(cache_path, encoding="utf-8") as f:
             cache = json.load(f)
         if cache.get("expires_at", 0) > time.time():
             return cache["access_token"]
@@ -271,7 +281,7 @@ def _get_digikey_token():
 
         access_token = token_data["access_token"]
         # Cache with 9-minute TTL (token valid for 10 min)
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({
                 "access_token": access_token,
                 "expires_at": time.time() + 540,
@@ -457,7 +467,7 @@ def fetch_specs_from_datasheet(mpn, project_dir):
         return None
 
     try:
-        with open(index_path) as f:
+        with open(index_path, encoding="utf-8") as f:
             index = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -488,7 +498,7 @@ def fetch_specs_from_datasheet(mpn, project_dir):
         # Extract first 5 pages (electrical specs are usually in pages 2-5)
         result = subprocess.run(
             ["pdftotext", "-l", "5", str(pdf_path), "-"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace"
         )
         if result.returncode != 0:
             return None
@@ -557,7 +567,7 @@ def fetch_specs_from_extraction(mpn, project_dir):
     if not index_path.exists():
         return None
     try:
-        with open(index_path) as f:
+        with open(index_path, encoding="utf-8") as f:
             index = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -575,7 +585,7 @@ def fetch_specs_from_extraction(mpn, project_dir):
     if not json_file.exists():
         return None
     try:
-        with open(json_file) as f:
+        with open(json_file, encoding="utf-8") as f:
             extraction = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None

@@ -14,6 +14,15 @@ Usage:
 Zero external dependencies — Python 3.8+ stdlib only.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import os
@@ -571,7 +580,7 @@ def main():
     def _load(path):
         if not path or not os.path.isfile(path):
             return None
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
 
     sch = _load(args.schematic)
@@ -592,7 +601,7 @@ def main():
         print(format_text_report(result))
     elif args.output:
         indent = None if args.compact else 2
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=indent)
         overall = result["overall_status"]
         total = result["summary"]["total_checks"]

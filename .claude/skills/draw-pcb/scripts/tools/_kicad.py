@@ -50,7 +50,7 @@ def call_helper(spec: dict, timeout: int = 120) -> dict:
         spec_path = f.name
     try:
         proc = subprocess.run([kp, str(_HELPER), "--input", spec_path],
-                              capture_output=True, text=True, timeout=timeout)
+                              capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "helper timed out"}
     finally:

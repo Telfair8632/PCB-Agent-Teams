@@ -357,7 +357,7 @@ def _extract_pdf_text(pdf_path: str, max_pages: int = 3) -> str:
     try:
         result = subprocess.run(
             ["pdftotext", "-l", str(max_pages), pdf_path, "-"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace"
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout

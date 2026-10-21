@@ -662,7 +662,7 @@ def main() -> None:
 
     overlay_annotations = None
     if args.overlay:
-        with open(args.overlay) as f:
+        with open(args.overlay, encoding="utf-8") as f:
             overlay_annotations = json.load(f)
 
     out = render_pcb(args.pcb, args.output, args.preset,

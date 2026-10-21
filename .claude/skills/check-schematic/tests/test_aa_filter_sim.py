@@ -4,6 +4,15 @@ Regression tests for aa_filter_sim.py.
 Run: python3 -m pytest tests/test_aa_filter_sim.py
 or  : python3 tests/test_aa_filter_sim.py
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import shutil
 import subprocess
@@ -23,7 +32,7 @@ def test_se_lowpass_detected():
     """Single-ended R-C-to-GND filter is detected and fc matches analytic."""
     sys.path.insert(0, str(SCRIPT.parent))
     from aa_filter_sim import find_aa_candidates
-    analysis = json.loads(FIXTURE.read_text())
+    analysis = json.loads(FIXTURE.read_text(encoding="utf-8"))
     cands = find_aa_candidates(analysis)
     se = [c for c in cands if c['cap']['ref'] == 'C1']
     assert len(se) == 1, f"Expected 1 SE candidate for C1, got {len(se)}"
@@ -39,7 +48,7 @@ def test_diff_filter_detected():
     """Differential R-R-C bridge is detected with correct R_total."""
     sys.path.insert(0, str(SCRIPT.parent))
     from aa_filter_sim import find_diff_aa_candidates
-    analysis = json.loads(FIXTURE.read_text())
+    analysis = json.loads(FIXTURE.read_text(encoding="utf-8"))
     diff = find_diff_aa_candidates(analysis)
     assert len(diff) == 1, f"Expected 1 diff candidate, got {len(diff)}"
     c = diff[0]
@@ -52,7 +61,7 @@ def test_uuid_net_coalesced():
     """`/uuid/X` and `X` are merged into one logical net."""
     sys.path.insert(0, str(SCRIPT.parent))
     from aa_filter_sim import coalesce_nets
-    analysis = json.loads(FIXTURE.read_text())
+    analysis = json.loads(FIXTURE.read_text(encoding="utf-8"))
     coalesced = coalesce_nets(analysis['nets'])
     assert 'SIGNAL' in coalesced
     # Should contain both R1.2 (from /uuid/SIGNAL) AND C1.1 (from bare SIGNAL)
@@ -70,10 +79,10 @@ def test_end_to_end_with_ngspice():
     out = HERE / "fixtures" / "_aa_filter_sim_actual.json"
     result = subprocess.run(
         [venv_py, str(SCRIPT), str(FIXTURE), "-o", str(out)],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace"
     )
     assert result.returncode == 0, f"Script failed: {result.stderr}"
-    report = json.loads(out.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
     assert report['summary']['total'] == 2
     # Without spec, expect numeric_only verdict for both
     assert report['summary']['numeric_only'] + report['summary']['pass'] == 2

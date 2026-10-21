@@ -22,6 +22,15 @@
     python verify_footprints.py <py_file>          # 只查
     python verify_footprints.py <py_file> --fix    # 查 + 自动修 .py
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import ast
 import re
@@ -103,7 +112,7 @@ def extract_components_from_sch(sch_path: Path) -> List[Dict]:
     用途：.py 里动态拼字符串（R_SIG_FP.replace("R_", "C_")）AST 看不到，
     sch 里就是最终字面量。两步扫描：先扫 .py 改字面量，再扫 sch 兜底。
     """
-    text = sch_path.read_text()
+    text = sch_path.read_text(encoding="utf-8")
     out = []
     for lib_id, ref, value, fp in _SCH_FP_PAT.findall(text):
         if ref.startswith("#"):  # 跳过 #PWR / #FLG 之类内部符号
@@ -150,7 +159,7 @@ def verify_and_fix_sch(sch_path: Path, do_fix: bool = False) -> Dict:
     fixed: List[Dict] = []
     needs_manual: List[Dict] = []
     if do_fix and missing:
-        text = sch_path.read_text()
+        text = sch_path.read_text(encoding="utf-8")
         # 同一个 (ref, candidate) 组合可能被多个 component 共用（如 C3/C4/C6/C7
         # 都用 Resistor_SMD:C_0603_1608Metric）。替换是全文 replace，一次修全部，
         # 后续同组合的 entry 都标 fixed 不进 needs_manual。
@@ -171,7 +180,7 @@ def verify_and_fix_sch(sch_path: Path, do_fix: bool = False) -> Dict:
             else:
                 needs_manual.append(m)
         if fixed:
-            sch_path.write_text(text)
+            sch_path.write_text(text, encoding="utf-8")
     elif missing:
         needs_manual = missing
 
@@ -228,7 +237,7 @@ def extract_components_from_py(py_file: Path) -> List[Dict]:
 
     返回 [{ref, value, footprint, symbol, line}]
     """
-    text = py_file.read_text()
+    text = py_file.read_text(encoding="utf-8")
     tree = ast.parse(text)
     const_map = _build_module_const_map(tree)
     out: List[Dict] = []
@@ -377,7 +386,7 @@ def verify_and_fix(py_file: Path, do_fix: bool = False) -> Dict:
     fixed: List[Dict] = []
     needs_manual: List[Dict] = []
     if do_fix and missing:
-        text = py_file.read_text()
+        text = py_file.read_text(encoding="utf-8")
         for m in missing:
             cands = m["candidates"]
             if len(cands) == 1:
@@ -394,7 +403,7 @@ def verify_and_fix(py_file: Path, do_fix: bool = False) -> Dict:
             else:
                 needs_manual.append(m)
         if fixed:
-            py_file.write_text(text)
+            py_file.write_text(text, encoding="utf-8")
     elif missing:
         # 不修，全部进 needs_manual
         for m in missing:

@@ -112,7 +112,7 @@ class NgspiceBackend(SimulatorBackend):
         try:
             result = subprocess.run(
                 [binary, "-b", cir_file],
-                capture_output=True, text=True, timeout=timeout,
+                capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
             )
             return result.returncode == 0, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
@@ -250,7 +250,7 @@ class LtspiceBackend(SimulatorBackend):
                 cmd = [binary, "-b", cir_file]
 
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout,
+                cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
             )
             # LTspice returns 0 on success
             return result.returncode == 0, result.stdout, result.stderr
@@ -315,7 +315,7 @@ class LtspiceBackend(SimulatorBackend):
             text = stdout
         else:
             try:
-                with open(log_path) as f:
+                with open(log_path, encoding="utf-8") as f:
                     text = f.read()
             except OSError:
                 text = stdout
@@ -364,7 +364,7 @@ class XyceBackend(SimulatorBackend):
             # Xyce doesn't use -b; just pass the netlist file
             result = subprocess.run(
                 [binary, cir_file],
-                capture_output=True, text=True, timeout=timeout,
+                capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
             )
             return result.returncode == 0, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
@@ -416,7 +416,7 @@ class XyceBackend(SimulatorBackend):
         text = ""
         if os.path.isfile(mt0_path):
             try:
-                with open(mt0_path) as f:
+                with open(mt0_path, encoding="utf-8") as f:
                     text = f.read()
             except OSError:
                 text = stdout

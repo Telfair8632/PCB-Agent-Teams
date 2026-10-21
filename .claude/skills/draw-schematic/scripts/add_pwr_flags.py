@@ -19,6 +19,15 @@ PWR_FLAG.pin 是 power_out → 喂电给该 net → ERC 通过。
 或命令行:
     python add_pwr_flags.py <sch> <erc.json> <nets.json>
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -58,7 +67,7 @@ def _extract_pwr_flag_def() -> str:
     """从 power.kicad_sym 提 PWR_FLAG 完整定义块（括号深度匹配）。
     重命名 `(symbol "PWR_FLAG"` → `(symbol "power:PWR_FLAG"` 以匹配 sch 缓存格式。
     """
-    text = _find_power_lib().read_text()
+    text = _find_power_lib().read_text(encoding="utf-8")
     i = text.index('(symbol "PWR_FLAG"')
     depth = 1
     j = i + len('(symbol ')
@@ -192,7 +201,7 @@ def add_pwr_flags_to_sch(
         return []
 
     sch = ksa.load_schematic(str(sch_path))
-    text = sch_path.read_text().rstrip()
+    text = sch_path.read_text(encoding="utf-8").rstrip()
     if not text.endswith(')'):
         raise RuntimeError(f"sch 末尾不是 ')': {sch_path}")
 
@@ -229,7 +238,7 @@ def add_pwr_flags_to_sch(
         placed.append(net_name)
 
     text = text[:-1] + '\n' + ''.join(blocks) + ')\n'
-    sch_path.write_text(text)
+    sch_path.write_text(text, encoding="utf-8")
     return placed
 
 
@@ -256,8 +265,8 @@ def main():
     args = ap.parse_args()
 
     sch_path = Path(args.sch)
-    erc_data = json.loads(Path(args.erc_json).read_text())
-    nets = json.loads(Path(args.nets_json).read_text())
+    erc_data = json.loads(Path(args.erc_json).read_text(encoding="utf-8"))
+    nets = json.loads(Path(args.nets_json).read_text(encoding="utf-8"))
     n, flagged = add_pwr_flags_for_violations(sch_path, erc_data, nets)
     if n == 0:
         print("无 power_pin_not_driven 错，未加 PWR_FLAG")

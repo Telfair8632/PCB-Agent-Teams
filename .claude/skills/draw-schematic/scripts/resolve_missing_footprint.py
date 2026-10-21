@@ -17,6 +17,15 @@ Current rule:
 或命令行:
     python resolve_missing_footprint.py <py_file> --mpn <MPN> --ref <REF>
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import re
@@ -29,7 +38,7 @@ def _count_pads(kicad_mod_path: Path) -> int:
     """数 .kicad_mod 文件里电气 pad 个数（type smd/thru_hole）。"""
     if not kicad_mod_path.exists():
         return 0
-    text = kicad_mod_path.read_text()
+    text = kicad_mod_path.read_text(encoding="utf-8")
     # (pad "1" smd ...) 或 (pad "1" thru_hole ...)
     pads = re.findall(r'\(pad\s+"\w+"\s+(?:smd|thru_hole)\b', text)
     return len(pads)

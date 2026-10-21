@@ -104,7 +104,7 @@ def _check_flatpak() -> str | None:
         result = subprocess.run(
             ['flatpak', 'run', '--command=kicad-cli',
              'org.kicad.KiCad', '--version'],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
         if result.returncode == 0:
             return 'flatpak run --command=kicad-cli org.kicad.KiCad'
     except (OSError, subprocess.TimeoutExpired):
@@ -128,7 +128,7 @@ def _check_snap() -> str | None:
         try:
             result = subprocess.run(
                 ['snap', 'run', 'kicad.kicad-cli', '--version'],
-                capture_output=True, text=True, timeout=15)
+                capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
             if result.returncode == 0:
                 return 'snap run kicad.kicad-cli'
         except (OSError, subprocess.TimeoutExpired):
@@ -219,7 +219,7 @@ def _run_cli(cli_cmd: str, args: list[str],
     else:
         parts = [cli_cmd]
     return subprocess.run(
-        parts + args, capture_output=True, text=True, timeout=timeout)
+        parts + args, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
 
 
 def kicad_cli_version(cli_cmd: str) -> str | None:

@@ -83,10 +83,10 @@ def _run_cli(tmp_path, mods):
     lib = tmp_path / "t.pretty"
     lib.mkdir()
     for name, pins in mods:
-        (lib / f"{name}.kicad_mod").write_text(_mod(name, pins))
+        (lib / f"{name}.kicad_mod").write_text(_mod(name, pins), encoding="utf-8")
     p = subprocess.run(
         [sys.executable, str(Path(cc.__file__)), str(lib)],
-        capture_output=True, text=True)
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, json.loads(p.stdout)
 
 

@@ -33,6 +33,15 @@ Exit codes:
 """
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import ast
 import json
@@ -49,7 +58,7 @@ def _load_sentinel(py_file: Path) -> Optional[dict]:
     ]
     for c in candidates:
         if c.exists():
-            return json.loads(c.read_text())
+            return json.loads(c.read_text(encoding="utf-8"))
     return None
 
 
@@ -76,7 +85,7 @@ def _resolve_evidence(pdf_path: Path, sentinel_mpn: str,
         ev_file = evidence_dir / f"{candidate}.json"
         if ev_file.exists():
             try:
-                ev = json.loads(ev_file.read_text())
+                ev = json.loads(ev_file.read_text(encoding="utf-8"))
                 ev_mpn = ev.get("mpn")
                 if ev_mpn:
                     return {
@@ -197,7 +206,7 @@ def inject(py_file: Path, sentinel: dict, dry_run: bool = False) -> Tuple[int, L
     project_root = py_file.parent.parent if py_file.parent.name == "kicad" else py_file.parent
     ev_by_ref = _evidence_by_ref(sentinel, project_root)
 
-    src = py_file.read_text()
+    src = py_file.read_text(encoding="utf-8")
     tree = ast.parse(src)
 
     edits: List[Tuple[int, str, str]] = []  # (offset, snippet, log_msg)
@@ -252,7 +261,7 @@ def inject(py_file: Path, sentinel: dict, dry_run: bool = False) -> Tuple[int, L
         log.extend(skipped)
 
     if not dry_run:
-        py_file.write_text(new_src)
+        py_file.write_text(new_src, encoding="utf-8")
         log.append(f"✓ Wrote {py_file}")
     else:
         log.append("(dry-run — file not modified)")

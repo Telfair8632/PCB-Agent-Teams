@@ -15,7 +15,8 @@ from typing import Iterable
 
 
 def _read_bom(csv_path: Path) -> list[dict[str, str]]:
-    with csv_path.open(newline="") as f:
+    # utf-8-sig: tolerates a BOM on read and keeps Excel happy with Chinese
+    with csv_path.open(newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -71,7 +72,7 @@ def write_distributor_csvs(
         target = fn(rows)
         path = out_dir / name
         fieldnames = list(target[0].keys()) if target else []
-        with path.open("w", newline="") as f:
+        with path.open("w", newline="", encoding="utf-8-sig") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(target)

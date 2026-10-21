@@ -206,9 +206,9 @@ def main() -> int:
     items = []          # (display_name, front, pads)
     if target.is_dir():
         for f in sorted(target.glob("*.kicad_mod")):
-            items.append((f.stem, True, _pads_from_text(f.read_text(errors="replace"))))
+            items.append((f.stem, True, _pads_from_text(f.read_text(errors="replace", encoding="utf-8"))))
     else:
-        text = target.read_text(errors="replace")
+        text = target.read_text(errors="replace", encoding="utf-8")
         refs: dict[str, int] = {}
         for name, layer, block in _iter_board_footprints(text):
             rm = re.search(r'\(property\s+"Reference"\s+"([^"]*)"', block)

@@ -71,13 +71,13 @@ def run_drc(pcb_path: str) -> dict:
     try:
         subprocess.run([cli, "pcb", "drc", "--format", "json",
                         "-o", str(drc_file), pcb_path],
-                       capture_output=True, text=True, timeout=180)
+                       capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "DRC timed out"}
     if not drc_file.exists():
         return {"ok": False, "error": "DRC produced no output"}
 
-    data = json.loads(drc_file.read_text())
+    data = json.loads(drc_file.read_text(encoding="utf-8"))
 
     # Honour .kicad_pro exclusions — triaged items stay in JSON for trace but
     # don't drive the count.

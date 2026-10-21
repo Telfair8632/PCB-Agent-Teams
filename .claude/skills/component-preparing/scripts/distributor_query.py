@@ -34,6 +34,15 @@ Do not import query_all()/best_stock() from check_readiness.py.
 """
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import os
 import sys
@@ -58,7 +67,7 @@ def _get_digikey_token() -> Optional[tuple[str, str]]:
 
     cache_path = os.path.join(tempfile.gettempdir(), "digikey_token_cache.json")
     try:
-        with open(cache_path) as f:
+        with open(cache_path, encoding="utf-8") as f:
             cache = json.load(f)
         if cache.get("expires_at", 0) > time.time():
             return cache["access_token"], client_id
@@ -79,7 +88,7 @@ def _get_digikey_token() -> Optional[tuple[str, str]]:
         with urllib.request.urlopen(req, timeout=10) as resp:
             token_data = json.loads(resp.read())
         token = token_data["access_token"]
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"access_token": token, "expires_at": time.time() + 540}, f)
         return token, client_id
     except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):

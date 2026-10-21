@@ -22,6 +22,15 @@
     python verify_bom.py <project.py>
     python verify_bom.py <project.py> --auto-download  # deprecated no-op
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import ast
 import json
@@ -50,7 +59,7 @@ GENERIC_PLACEHOLDERS = {
 
 def parse_py_bom(py_file: Path) -> list[dict]:
     """从 .py AST 提元件清单。"""
-    text = py_file.read_text()
+    text = py_file.read_text(encoding="utf-8")
     tree = ast.parse(text)
     components = []
 
@@ -83,7 +92,7 @@ def find_in_components_lib(mpn: str) -> tuple[str, int] | None:
     """在 lib_external/components 里找包含 MPN 的 symbol。返回 (symbol_name, pin_count) 或 None。"""
     if not COMPONENTS_LIB.exists():
         return None
-    text = COMPONENTS_LIB.read_text()
+    text = COMPONENTS_LIB.read_text(encoding="utf-8")
     # 找 (symbol "X" 顶层（不带 sub-symbol suffixes _0_0 / _0_1 / _1_0 / _1_1）
     for m in re.finditer(r'\(symbol\s+"([^"]+)"', text):
         name = m.group(1)

@@ -553,7 +553,7 @@ def identify_layer_type(filename: str, x2_attrs: dict) -> str:
 def parse_job_file(path: str) -> dict | None:
     """Parse a .gbrjob file and extract structured metadata."""
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -1623,7 +1623,7 @@ def main():
             analysis_dir = os.path.abspath(analysis_dir)
         filename = CANONICAL_OUTPUTS.get('gerber', 'gerber.json')
         with tempfile.TemporaryDirectory() as tmp_dir:
-            Path(os.path.join(tmp_dir, filename)).write_text(output_json)
+            Path(os.path.join(tmp_dir, filename)).write_text(output_json, encoding="utf-8")
             overwrite_current(analysis_dir, tmp_dir, source_hashes=None)
         current = get_current_run(analysis_dir)
         if current:
@@ -1632,7 +1632,7 @@ def main():
             out_path = os.path.join(analysis_dir, filename)
         print(f"Written to {out_path}", file=sys.stderr)
     elif output_path:
-        Path(output_path).write_text(output_json)
+        Path(output_path).write_text(output_json, encoding="utf-8")
         print(f"Written to {output_path}", file=sys.stderr)
     elif args.text:
         from output_filters import format_text

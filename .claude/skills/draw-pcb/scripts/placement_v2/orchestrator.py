@@ -36,6 +36,16 @@ CLAUDE.md placement schema (all optional):
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+import glob
 import json
 import os
 import re
@@ -274,6 +284,9 @@ def extract_pcb_data(pcb_path: Path) -> Tuple[Dict[str, Set[str]],
 # Apply via existing helper -----------------------------------------------
 
 def _find_kicad_python() -> str:
+    env_py = os.environ.get("KICAD_PYTHON")
+    if env_py and Path(env_py).exists():
+        return env_py
     candidates = [
         "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
         "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
@@ -282,6 +295,13 @@ def _find_kicad_python() -> str:
     for p in candidates:
         if Path(p).exists():
             return p
+    # Windows install roots (versioned sub-dirs + flat layout on custom drives)
+    for pat in (r"C:\Program Files\KiCad\*\bin\python.exe",
+                r"F:\KiCad\*\bin\python.exe",
+                r"F:\KiCad\bin\python.exe"):
+        hits = sorted(glob.glob(pat))
+        if hits:
+            return hits[-1]
     return ""
 
 
@@ -295,7 +315,7 @@ def _call_helper(spec: Dict, timeout: int = 60) -> Dict:
         spec_path = f.name
     try:
         proc = subprocess.run([py, str(helper), "--input", spec_path],
-                                capture_output=True, text=True, timeout=timeout)
+                                capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
     finally:
         Path(spec_path).unlink(missing_ok=True)
     if proc.returncode != 0 and not proc.stdout.strip():

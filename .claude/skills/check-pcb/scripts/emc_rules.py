@@ -14,6 +14,15 @@ Each check function returns a list of finding dicts with:
 Zero external dependencies beyond Python 3.8+ stdlib.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import math
 import re
 from typing import List, Dict, Optional, Any

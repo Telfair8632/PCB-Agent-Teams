@@ -18,6 +18,15 @@ list. Key entry points:
              workspace .venv) and handed in via `placements` + `board`.
     Spec   : {mode, pcb_path, placements{}, board{...,slots[]}, output_pcb}
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -157,7 +166,7 @@ def mode_create_pcb(spec):
     pro_path = Path(output_pcb).with_suffix(".kicad_pro")
     if pro_path.exists():
         try:
-            pro = json.loads(pro_path.read_text())
+            pro = json.loads(pro_path.read_text(encoding="utf-8"))
             ds_rules = pro.setdefault("board", {}).setdefault("design_settings", {}).setdefault("rules", {})
             # Permit thin tracks for manual routing.
             ds_rules["min_track_width"] = 0.2
@@ -168,7 +177,7 @@ def mode_create_pcb(spec):
                 if nc.get("name") == "Default":
                     nc["clearance"] = 0.2
                     break
-            pro_path.write_text(json.dumps(pro, indent=2))
+            pro_path.write_text(json.dumps(pro, indent=2), encoding="utf-8")
         except Exception as e:
             # Non-fatal: pipeline still works with default rules
             pass
@@ -2215,7 +2224,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     args = parser.parse_args()
-    spec = json.loads(Path(args.input).read_text())
+    spec = json.loads(Path(args.input).read_text(encoding="utf-8"))
     mode = spec.get("mode")
     if mode not in MODES:
         print(json.dumps({"ok": False, "error": f"unknown mode: {mode}"}))

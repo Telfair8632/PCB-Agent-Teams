@@ -11,6 +11,15 @@ Usage (called by kidoc_generate.py, not directly):
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import os
@@ -251,7 +260,7 @@ def _add_image(doc, elem: dict, base_dir: str, styles: dict,
     try:
         # Read image to determine size
         from PIL import Image as PILImage
-        with PILImage.open(img_path) as img:
+        with PILImage.open(img_path, encoding="utf-8") as img:
             img_w, img_h = img.size
         # Scale to fit ~16cm width
         max_w_cm = 16.0
@@ -364,7 +373,7 @@ def main():
     args = parser.parse_args()
 
     if os.path.isfile(args.config):
-        with open(args.config) as f:
+        with open(args.config, encoding="utf-8") as f:
             config = json.load(f)
     else:
         config = json.loads(args.config)

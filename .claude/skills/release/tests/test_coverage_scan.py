@@ -21,7 +21,7 @@ def _write_evidence(
             "product_url": f"https://www.digikey.com/.../{mpn}",
         },
     }
-    (dir / f"{mpn}.json").write_text(json.dumps(payload))
+    (dir / f"{mpn}.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_scan_two_mpns_one_vendor(tmp_path):
@@ -43,7 +43,7 @@ def test_scan_skips_longlist_files(tmp_path):
     cs = tmp_path / "component_selecting"
     cs.mkdir()
     _write_evidence(cs, "AMC1311BDWVR")
-    (cs / "R1_iso_amp_longlist.json").write_text(json.dumps({"role": "iso_amp"}))
+    (cs / "R1_iso_amp_longlist.json").write_text(json.dumps({"role": "iso_amp"}), encoding="utf-8")
 
     result = scan_coverage(cs)
 
@@ -92,7 +92,7 @@ def _write_artifact_shortlist(
         }],
     }
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-    (artifacts_dir / f"{role_stem}_shortlist.json").write_text(json.dumps(payload))
+    (artifacts_dir / f"{role_stem}_shortlist.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_all_lane_picks_real_coverage_not_just_primary(tmp_path):

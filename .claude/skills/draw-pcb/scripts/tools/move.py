@@ -59,7 +59,7 @@ def main() -> int:
             ref, vals = _parse_move(m)
             moves[ref] = vals
         if args.moves_json:
-            raw = json.loads(Path(args.moves_json).read_text())
+            raw = json.loads(Path(args.moves_json).read_text(encoding="utf-8"))
             for ref, v in raw.items():
                 moves[ref] = [v[0], v[1], v[2] if len(v) > 2 else None]
     except (ValueError, OSError, json.JSONDecodeError, IndexError) as e:

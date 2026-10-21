@@ -42,7 +42,7 @@ def _is_locked_evidence_file(path: Path) -> bool:
 
 def _load_evidence(path: Path) -> dict | None:
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
     if not isinstance(data, dict):
@@ -63,7 +63,7 @@ def _load_artifact_lanes(artifacts_dir: Path) -> dict[str, dict[str, dict]]:
         return by_mpn
     for path in sorted(artifacts_dir.glob("*_shortlist.json")):
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
         if not isinstance(data, dict):

@@ -35,6 +35,15 @@
       "next_step": "Claude must Read PDF for L2 visual verification"
     }
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import ast
 import glob
@@ -120,7 +129,7 @@ def extract_nets_from_py(py_file: Path) -> Dict[str, Dict[str, str]]:
     用 Component(ref="R1") 找出每个变量名 → ref 的映射。
     用 Net("HV+") 找出每个变量名 → net_name。
     """
-    text = py_file.read_text()
+    text = py_file.read_text(encoding="utf-8")
     tree = ast.parse(text)
 
     var_to_ref: Dict[str, str] = {}      # 变量名 → "R1"
@@ -194,7 +203,7 @@ def run_circuit_synth(py_file: Path) -> Optional[Path]:
     proj_dir = py_file.parent
     cmd = [str(VENV_PYTHON), str(py_file)]
     env = _build_symbol_env()
-    result = subprocess.run(cmd, cwd=proj_dir, capture_output=True, text=True, timeout=180, env=env)
+    result = subprocess.run(cmd, cwd=proj_dir, capture_output=True, text=True, timeout=180, env=env, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         print(f"❌ circuit_synth 跑失败:\n{result.stderr}", file=sys.stderr)
         return None
@@ -265,7 +274,7 @@ def run_erc(sch_path: Path, kicad_cli: str) -> Dict:
     erc_file.unlink(missing_ok=True)
     run_started = time.time()
     cmd = [kicad_cli, "sch", "erc", "--format", "json", "-o", str(erc_file), str(sch_path)]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
 
     if not erc_file.exists():
         return {"error": "ERC 没产出 json", "stderr": result.stderr}
@@ -273,7 +282,7 @@ def run_erc(sch_path: Path, kicad_cli: str) -> Dict:
         return {"error": "ERC json 是旧的（kicad-cli 没刷新输出）", "stderr": result.stderr}
 
     try:
-        data = json.loads(erc_file.read_text())
+        data = json.loads(erc_file.read_text(encoding="utf-8"))
     except Exception as e:
         return {"error": f"ERC json parse 失败: {e}"}
     finally:
@@ -328,7 +337,7 @@ def _check_bom_readiness_sentinel(py_file: Path) -> Dict:
         return {"ok": False, "reason": f"sentinel 不存在：{sentinel_path}",
                 "summary": {}}
     try:
-        data = json.loads(sentinel_path.read_text())
+        data = json.loads(sentinel_path.read_text(encoding="utf-8"))
     except Exception as e:
         return {"ok": False, "reason": f"sentinel 损坏: {e}", "summary": {}}
 
@@ -364,7 +373,7 @@ def run_export_pdf(sch_path: Path, kicad_cli: str) -> Path:
     """出 PDF。"""
     pdf = sch_path.with_suffix(".pdf")
     cmd = [kicad_cli, "sch", "export", "pdf", "-o", str(pdf), str(sch_path)]
-    subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     return pdf
 
 
@@ -397,7 +406,7 @@ def run_schematic_analysis_and_spice(sch_path: Path, skip_spice: bool = False) -
         "--output", str(sch_json),
         "--stage", "schematic",
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if proc.returncode != 0 or not sch_json.exists():
         result["ok"] = False
         result["reason"] = proc.stderr[:500] or "schematic analyzer produced no output"
@@ -423,7 +432,7 @@ def run_schematic_analysis_and_spice(sch_path: Path, skip_spice: bool = False) -
         "--output", str(spice_json),
         "--compact",
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
 
     if proc.returncode != 0:
         stderr = proc.stderr or ""
@@ -451,7 +460,7 @@ def run_schematic_analysis_and_spice(sch_path: Path, skip_spice: bool = False) -
         return result
 
     try:
-        spice_data = json.loads(spice_json.read_text())
+        spice_data = json.loads(spice_json.read_text(encoding="utf-8"))
     except Exception as e:
         result["spice"] = {"ok": False, "reason": f"spice json parse failed: {e}"}
         result["ok"] = False
@@ -476,7 +485,7 @@ def run_schematic_analysis_and_spice(sch_path: Path, skip_spice: bool = False) -
 # ============================================================
 
 def count_sch_stats(sch_path: Path) -> Dict[str, int]:
-    text = sch_path.read_text()
+    text = sch_path.read_text(encoding="utf-8")
     return {
         "lib_id": len(re.findall(r"lib_id", text)),
         "wire":   len(re.findall(r"\(wire ", text)),

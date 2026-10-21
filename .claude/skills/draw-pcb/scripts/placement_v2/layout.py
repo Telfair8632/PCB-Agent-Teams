@@ -16,6 +16,15 @@ keepout check that skips any grid cell overlapping a keepout rect.
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple

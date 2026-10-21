@@ -934,7 +934,7 @@ def main():
 
     t0 = time.time()
 
-    with open(args.schematic, 'r') as f:
+    with open(args.schematic, 'r', encoding="utf-8") as f:
         schematic = json.load(f)
 
     if 'signal_analysis' in schematic and 'findings' not in schematic:
@@ -946,7 +946,7 @@ def main():
 
     pcb = None
     if args.pcb:
-        with open(args.pcb, 'r') as f:
+        with open(args.pcb, 'r', encoding="utf-8") as f:
             pcb = json.load(f)
 
     findings = run_all_checks(schematic, pcb)
@@ -975,7 +975,7 @@ def main():
         sys.exit(0)
 
     if args.output:
-        with open(args.output, 'w') as f:
+        with open(args.output, 'w', encoding="utf-8") as f:
             json.dump(result, f, indent=2)
         print(f'Cross-analysis: {len(findings)} findings -> {args.output}', file=sys.stderr)
     elif args.analysis_dir:
@@ -990,7 +990,7 @@ def main():
         filename = CANONICAL_OUTPUTS.get('cross_analysis', 'cross_analysis.json')
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_out = os.path.join(tmp_dir, filename)
-            with open(tmp_out, 'w') as f:
+            with open(tmp_out, 'w', encoding="utf-8") as f:
                 json.dump(result, f, indent=2)
             overwrite_current(analysis_dir, tmp_dir, source_hashes=None)
         current = get_current_run(analysis_dir)

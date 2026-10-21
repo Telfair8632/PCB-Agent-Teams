@@ -281,7 +281,7 @@ def main():
     args = parser.parse_args()
 
     if os.path.isfile(args.config):
-        with open(args.config) as f:
+        with open(args.config, encoding="utf-8") as f:
             config = json.load(f)
     else:
         config = json.loads(args.config)

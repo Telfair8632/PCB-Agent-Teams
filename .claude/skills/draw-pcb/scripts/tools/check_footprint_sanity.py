@@ -122,9 +122,9 @@ def main() -> int:
     per_fp: dict[str, tuple[dict, list[str]]] = {}
     if target.is_dir():
         for f in sorted(target.glob("*.kicad_mod")):
-            per_fp[f.stem] = (check_footprint(f.read_text(errors="replace")), [])
+            per_fp[f.stem] = (check_footprint(f.read_text(errors="replace", encoding="utf-8")), [])
     else:
-        text = target.read_text(errors="replace")
+        text = target.read_text(errors="replace", encoding="utf-8")
         for name, ref, block in _iter_board_footprints(text):
             short = name.split(":")[-1]
             if short in per_fp:

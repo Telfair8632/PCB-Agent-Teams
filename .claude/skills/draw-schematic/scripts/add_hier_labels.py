@@ -14,6 +14,15 @@ KiCad ERC 因此报 `hier_label_mismatch`：sheet pin 找不到对应的 hier_la
     n = patch_hier_labels(main_sch_path)
 """
 from __future__ import annotations
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import random
 import re
@@ -116,7 +125,7 @@ def patch_hier_labels(main_sch: Path) -> dict:
 
     返回 {sub_file: [added_names], "_main_added": [names_added_on_main]}
     """
-    main_text = main_sch.read_text()
+    main_text = main_sch.read_text(encoding="utf-8")
     sheets = _extract_sheet_blocks(main_text)
     proj_dir = main_sch.parent
     report: dict[str, list[str]] = {}
@@ -217,7 +226,7 @@ def patch_hier_labels(main_sch: Path) -> dict:
         main_text_stripped = main_text.rstrip()
         if main_text_stripped.endswith(')'):
             main_text = main_text_stripped[:-1] + '\n' + '\n'.join(main_new_blocks) + '\n)\n'
-            main_sch.write_text(main_text)
+            main_sch.write_text(main_text, encoding="utf-8")
     report["_main_added"] = main_added
 
     for sheet_file, pins in sheets:
@@ -225,7 +234,7 @@ def patch_hier_labels(main_sch: Path) -> dict:
         if not sub_path.exists():
             print(f"  ⚠ sheet 引用 {sheet_file} 不存在，跳过")
             continue
-        sub_text = sub_path.read_text()
+        sub_text = sub_path.read_text(encoding="utf-8")
         existing = _existing_hier_labels(sub_text)
 
         missing = [(name, shape) for name, shape, _x, _y in pins if name not in existing]
@@ -277,7 +286,7 @@ def patch_hier_labels(main_sch: Path) -> dict:
             else:
                 sub_text = sub_text[:-1] + '\n' + '\n'.join(appended_blocks) + '\n)\n'
 
-        sub_path.write_text(sub_text)
+        sub_path.write_text(sub_text, encoding="utf-8")
         report[sheet_file] = added
 
     return report

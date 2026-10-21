@@ -326,7 +326,7 @@ def main() -> int:
         "meander_amplitude": args.meander_amplitude,
     }.items() if v is not None}
 
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace")
     summary = None
     for ln in (proc.stdout or "").splitlines():
         if ln.startswith("JSON_SUMMARY:"):

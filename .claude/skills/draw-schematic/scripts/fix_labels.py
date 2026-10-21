@@ -20,6 +20,15 @@ nets_json 格式:
 
 KiCad sch 坐标系：Y 轴翻转。real_y = placed.y - lib.y（减号）。
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -79,7 +88,7 @@ def fix_labels_for_sch(
         中的 hierarchical_label 是 sheet 端口，删了会断 cross-sheet 连接。
         旧版单图模式（circuit-synth 在主 sch 放假 hier_label）才传 True。
     """
-    text = sch_path.read_text()
+    text = sch_path.read_text(encoding="utf-8")
 
     # Step 1: 删旧 label（必删，fix_labels 会重新放在精确 pin 坐标）。
     # 用深度计数匹配 (label ...) / (hierarchical_label ...) 整块——
@@ -175,7 +184,7 @@ def fix_labels_for_sch(
 
     text = remove_power_symbols(text)
 
-    sch_path.write_text(text)
+    sch_path.write_text(text, encoding="utf-8")
 
     # Step 2: 用 ksa 拿元件 + lib 精确 pin 位置
     sch = ksa.load_schematic(str(sch_path))
@@ -256,12 +265,12 @@ def fix_labels_for_sch(
                 )
 
     # Step 3: 插入 label + no_connect
-    text = sch_path.read_text().rstrip()
+    text = sch_path.read_text(encoding="utf-8").rstrip()
     if not text.endswith(')'):
         raise RuntimeError(f"sch 末尾不是 ')': {sch_path}")
     new_blocks = new_labels + new_nc
     text = text[:-1] + '\n' + '\n'.join(new_blocks) + '\n)\n'
-    sch_path.write_text(text)
+    sch_path.write_text(text, encoding="utf-8")
     return len(new_labels)
 
 
@@ -274,7 +283,7 @@ def main():
     args = ap.parse_args()
 
     sch_path = Path(args.sch)
-    nets = json.loads(Path(args.nets_json).read_text())
+    nets = json.loads(Path(args.nets_json).read_text(encoding="utf-8"))
     n = fix_labels_for_sch(sch_path, nets, drop_hier_labels=args.drop_hier_labels)
     print(f"✅ 加了 {n} 个 label 到 {sch_path}")
 

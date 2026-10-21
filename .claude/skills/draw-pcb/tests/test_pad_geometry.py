@@ -61,7 +61,7 @@ def _board(tmp_path: Path, parts: list[str], name="sample_project") -> str:
     text += parts
     text.append(")")
     p = tmp_path / f"{name}.kicad_pcb"
-    p.write_text("\n".join(text))
+    p.write_text("\n".join(text), encoding="utf-8")
     return str(p)
 
 

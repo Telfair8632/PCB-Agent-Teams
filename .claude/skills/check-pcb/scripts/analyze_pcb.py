@@ -14,6 +14,15 @@ Usage:
     python analyze_pcb.py <file.kicad_pcb|file.kicad_pro|dir/> [--output file.json]
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import heapq
 import json
 import math
@@ -6738,7 +6747,7 @@ def main():
     schematic_data = None
     if args.schematic:
         try:
-            with open(args.schematic) as f:
+            with open(args.schematic, encoding="utf-8") as f:
                 schematic_data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             print(f"Warning: cannot load schematic analysis: {e}", file=sys.stderr)
@@ -6763,7 +6772,7 @@ def main():
         debug_path = os.path.join(debug_dir, "gp001_debug.json")
         try:
             os.makedirs(debug_dir, exist_ok=True)
-            with open(debug_path, "w") as f:
+            with open(debug_path, "w", encoding="utf-8") as f:
                 json.dump({
                     "description": "GP-001 return-path per-sample diagnostics",
                     "radius_mm": args.return_path_radius_mm,
@@ -6850,14 +6859,14 @@ def main():
             save_manifest(analysis_dir, manifest)
         gitignore_path = os.path.join(analysis_dir, '.gitignore')
         if not os.path.isfile(gitignore_path):
-            with open(gitignore_path, 'w') as f:
+            with open(gitignore_path, 'w', encoding="utf-8") as f:
                 f.write(GITIGNORE_CONTENT)
 
         source_hashes = {os.path.basename(args.pcb): hash_source_file(args.pcb)}
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_file = os.path.join(tmp_dir, CANONICAL_OUTPUTS.get("pcb", "pcb.json"))
-            Path(out_file).write_text(output)
+            Path(out_file).write_text(output, encoding="utf-8")
 
             if should_create_new_run(analysis_dir, tmp_dir):
                 run_id = create_run(
@@ -6872,7 +6881,7 @@ def main():
                 print(f"Analysis cache updated (current run)", file=sys.stderr)
 
     elif args.output:
-        Path(args.output).write_text(output)
+        Path(args.output).write_text(output, encoding="utf-8")
         print(f"Written to {args.output}", file=sys.stderr)
     else:
         print(output)

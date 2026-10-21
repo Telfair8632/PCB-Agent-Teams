@@ -163,7 +163,7 @@ def _get_digikey_token() -> tuple[str, str] | None:
     # Token cache
     cache_path = os.path.join(tempfile.gettempdir(), "digikey_token_cache.json")
     try:
-        with open(cache_path) as f:
+        with open(cache_path, encoding="utf-8") as f:
             cache = json.load(f)
         if cache.get("expires_at", 0) > time.time():
             return cache["access_token"], client_id
@@ -184,7 +184,7 @@ def _get_digikey_token() -> tuple[str, str] | None:
         with urllib.request.urlopen(req, timeout=10) as resp:
             token_data = json.loads(resp.read())
         token = token_data["access_token"]
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"access_token": token, "expires_at": time.time() + 540}, f)
         return token, client_id
     except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
@@ -395,7 +395,7 @@ def read_extraction_temperature(mpn: str, project_dir: str) -> dict | None:
             idx_path = extracted_dir / "index.json"
         if idx_path.exists():
             try:
-                with open(idx_path) as f:
+                with open(idx_path, encoding="utf-8") as f:
                     idx = json.load(f)
                 for k, v in idx.get("extractions", {}).items():
                     if k.upper() == sanitized.upper():
@@ -407,7 +407,7 @@ def read_extraction_temperature(mpn: str, project_dir: str) -> dict | None:
             return None
 
     try:
-        with open(extract_path) as f:
+        with open(extract_path, encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -961,7 +961,7 @@ def main():
 
     # Load analyzer JSON
     input_path = Path(args.input)
-    with open(input_path) as f:
+    with open(input_path, encoding="utf-8") as f:
         analysis = json.load(f)
 
     # Resolve project directory from analyzer JSON
@@ -998,7 +998,7 @@ def main():
     # Output
     output_json = json.dumps(result, indent=2)
     if args.output:
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(output_json)
         print(f"Audit written to {args.output}", file=sys.stderr)
     else:

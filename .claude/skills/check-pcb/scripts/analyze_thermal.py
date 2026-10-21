@@ -16,6 +16,15 @@ Requires both schematic and PCB JSON (schematic for power data, PCB for copper
 and thermal via data). Zero dependencies — Python 3.8+ stdlib only.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -248,7 +257,7 @@ def _get_datasheet_thermal(mpn: str, extract_dir: str) -> dict:
         return {}
 
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return {}
@@ -1123,7 +1132,7 @@ def main():
 
     # Load inputs
     try:
-        with open(args.schematic) as f:
+        with open(args.schematic, encoding="utf-8") as f:
             schematic = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading schematic: {e}", file=sys.stderr)
@@ -1137,7 +1146,7 @@ def main():
         sys.exit(1)
 
     try:
-        with open(args.pcb) as f:
+        with open(args.pcb, encoding="utf-8") as f:
             pcb = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading PCB: {e}", file=sys.stderr)
@@ -1319,7 +1328,7 @@ def main():
         filename = CANONICAL_OUTPUTS.get("thermal", "thermal.json")
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_out = os.path.join(tmp_dir, filename)
-            with open(tmp_out, "w") as f:
+            with open(tmp_out, "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=2)
             overwrite_current(analysis_dir, tmp_dir, source_hashes=None)
         current = get_current_run(analysis_dir)
@@ -1330,7 +1339,7 @@ def main():
         print(f"Thermal analysis complete: {len(findings)} findings "
               f"({score_txt}) -> {out_path}", file=sys.stderr)
     elif output_path:
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2)
         print(f"Thermal analysis complete: {len(findings)} findings "
               f"({score_txt}) -> {output_path}", file=sys.stderr)

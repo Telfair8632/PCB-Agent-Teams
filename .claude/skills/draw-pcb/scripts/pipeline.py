@@ -21,6 +21,15 @@ Phase E (scripts/tools/route.py, KRT) — see SKILL.md. After this pipeline
 finishes, pick one: run Phase E, route by hand in the KiCad GUI, or skip
 routing and go straight to review.
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import glob
 import json
@@ -172,7 +181,7 @@ def phase1_sch_to_pcb(preflight: Dict) -> Dict:
 
     sch_to_pcb_script = SCRIPT_DIR / "sch_to_pcb.py"
     cmd = [VENV_PYTHON, str(sch_to_pcb_script), str(Path(preflight["sch_path"]).parent)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         return {"ok": False, "error": f"sch_to_pcb failed: {proc.stderr[:500]}"}
 
@@ -195,7 +204,7 @@ def phase2_placement(preflight: Dict, pcb_path: str) -> Dict:
     cmd = [VENV_PYTHON, str(place_script), pcb_path]
     if preflight.get("claude_md"):
         cmd += ["--claude-md", preflight["claude_md"]]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
 
     if proc.returncode != 0:
         return {"ok": False, "error": f"placement failed: {proc.stderr[:500]}",
@@ -228,7 +237,7 @@ def _call_helper_mode(spec: Dict, timeout: int = 120) -> Dict:
     try:
         proc = subprocess.run(
             [KICAD_PYTHON, str(helper), "--input", spec_path],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
         )
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "helper timed out"}
@@ -392,11 +401,11 @@ def phase3_drc(pcb_path: str, skip: bool = False) -> Dict:
 
     drc_file = Path(pcb_path).with_suffix(".drc.json")
     cmd = [KICAD_CLI, "pcb", "drc", "--format", "json", "-o", str(drc_file), pcb_path]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if not drc_file.exists():
         return {"ok": False, "error": "DRC produced no output", "stderr": proc.stderr[:300]}
 
-    data = json.loads(drc_file.read_text())
+    data = json.loads(drc_file.read_text(encoding="utf-8"))
     total_violations = len(data.get("violations", []) or [])
     total_unconnected = len(data.get("unconnected_items", []) or [])
 
@@ -417,7 +426,7 @@ def phase3_drc(pcb_path: str, skip: bool = False) -> Dict:
         by_type[t] = by_type.get(t, 0) + 1
 
     if exclusions:
-        drc_file.write_text(json.dumps(data, indent=2))
+        drc_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     print(f"  Violations: {len(violations)}/{total_violations} active, "
           f"Unconnected: {len(unconnected)}/{total_unconnected} active")
@@ -453,11 +462,11 @@ def phase4_export_visuals(pcb_path: str) -> Dict:
 
     pdf_cmd = [KICAD_CLI, "pcb", "export", "pdf", "-o", str(pdf_path),
                "--layers", layers, str(pcb)]
-    pdf_ok = subprocess.run(pdf_cmd, capture_output=True, text=True, timeout=60).returncode == 0
+    pdf_ok = subprocess.run(pdf_cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace").returncode == 0
 
     svg_cmd = [KICAD_CLI, "pcb", "export", "svg", "-o", str(svg_path),
                "--layers", layers, str(pcb)]
-    svg_ok = subprocess.run(svg_cmd, capture_output=True, text=True, timeout=60).returncode == 0
+    svg_ok = subprocess.run(svg_cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace").returncode == 0
 
     if pdf_ok:
         print(f"  ✓ PDF: {pdf_path.name}")
@@ -493,7 +502,7 @@ def phase5_emc(preflight: Dict, pcb_path: str, skip: bool = False) -> Dict:
     sch_json = analysis_dir / "sch_analysis.json"
     proc = subprocess.run([VENV_PYTHON, str(KICAD_ANALYZE_SCH), sch_path,
                            "--output", str(sch_json)],
-                          capture_output=True, text=True, timeout=180)
+                          capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if proc.returncode != 0 or not sch_json.exists():
         return {"ok": True, "skipped": True,
                 "reason": f"sch analyzer failed: {proc.stderr[:200] or 'no output file'}"}
@@ -502,7 +511,7 @@ def phase5_emc(preflight: Dict, pcb_path: str, skip: bool = False) -> Dict:
     proc = subprocess.run([VENV_PYTHON, str(KICAD_ANALYZE_PCB), pcb_path,
                            "--full",
                            "--output", str(pcb_json)],
-                          capture_output=True, text=True, timeout=180)
+                          capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if proc.returncode != 0 or not pcb_json.exists():
         return {"ok": True, "skipped": True,
                 "reason": f"pcb analyzer failed: {proc.stderr[:200] or 'no output file'}"}
@@ -514,13 +523,13 @@ def phase5_emc(preflight: Dict, pcb_path: str, skip: bool = False) -> Dict:
                            "--output", str(emc_json),
                            "--stage", "layout",
                            "--standard", "fcc-class-b"],
-                          capture_output=True, text=True, timeout=120)
+                          capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         return {"ok": True, "skipped": True,
                 "reason": f"emc analyzer failed: {proc.stderr[:200]}"}
 
     if emc_json.exists():
-        emc_data = json.loads(emc_json.read_text())
+        emc_data = json.loads(emc_json.read_text(encoding="utf-8"))
         findings = emc_data.get("findings", [])
         by_severity = {}
         for f in findings:
@@ -576,7 +585,7 @@ def phase6_design_review(preflight: Dict, pcb_path: str, skip: bool = False) -> 
         cmd_scaffold += ["--emc-json", str(emc_json)]
 
     try:
-        proc = subprocess.run(cmd_scaffold, capture_output=True, text=True, timeout=120)
+        proc = subprocess.run(cmd_scaffold, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return {"ok": True, "skipped": True, "reason": "scaffold timed out"}
 
@@ -591,7 +600,7 @@ def phase6_design_review(preflight: Dict, pcb_path: str, skip: bool = False) -> 
         "--doc", str(md_path),
     ]
     try:
-        subprocess.run(cmd_pdf, capture_output=True, text=True, timeout=180)
+        subprocess.run(cmd_pdf, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return {"ok": True, "md_path": str(md_path),
                 "pdf_failed": "generate timed out"}

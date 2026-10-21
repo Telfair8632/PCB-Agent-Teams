@@ -118,7 +118,7 @@ def _run_format_generator(format_name: str, python: str, script: str,
         '--output', output_path,
         '--config', json.dumps(config),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         print(f"{format_name} generation failed: {result.stderr}",
               file=sys.stderr)

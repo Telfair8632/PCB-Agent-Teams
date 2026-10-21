@@ -85,7 +85,7 @@ def ensure_venv(project_dir: str, quiet: bool = False) -> str:
 
     _log("Installing report generation dependencies...")
     cmd = pip_cmd + ['install', '-q', '-r', REQUIREMENTS_FILE]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         _log(f"pip install failed: {result.stderr}")
         raise RuntimeError(f"Failed to install dependencies: {result.stderr}")

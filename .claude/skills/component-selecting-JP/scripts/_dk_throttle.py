@@ -23,6 +23,15 @@ Public API:
 """
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import os
 import tempfile
@@ -114,7 +123,7 @@ def _interval_for(host: str) -> float:
 
 def _load_state() -> dict:
     try:
-        with open(_STATE_FILE) as f:
+        with open(_STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
@@ -122,7 +131,7 @@ def _load_state() -> dict:
 
 def _save_state(state: dict) -> None:
     try:
-        with open(_STATE_FILE, "w") as f:
+        with open(_STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f)
     except OSError:
         pass
@@ -138,7 +147,7 @@ def _mark_dead_until(host: str, until_epoch: float, reason: str) -> None:
     subsequent throttled_urlopen calls to this host fail-fast with
     DailyQuotaExhausted until the time passes."""
     with _THREAD_LOCK:
-        with open(_STATE_FILE, "a+") as f:
+        with open(_STATE_FILE, "a+", encoding="utf-8") as f:
             _lock(f)
             try:
                 f.seek(0)
@@ -164,7 +173,7 @@ def _wait_for_host_slot(host: str) -> None:
     releasing the lock."""
     interval = _interval_for(host)
     with _THREAD_LOCK:
-        with open(_STATE_FILE, "a+") as f:
+        with open(_STATE_FILE, "a+", encoding="utf-8") as f:
             _lock(f)
             try:
                 f.seek(0)

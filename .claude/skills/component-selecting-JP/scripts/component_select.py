@@ -12,6 +12,15 @@ It does not invent product URLs and it does not ask an LLM to classify HTML.
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import concurrent.futures
 import json
@@ -21,6 +30,7 @@ import re
 import statistics
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -800,7 +810,9 @@ LCSC_WMSC_URL_TMPL = "https://wmsc.lcsc.com/ftps/wm/product/detail?productCode={
 # day-over-day movement is typically <0.3% — well within "estimate" precision
 # we surface to the user. Fallback rate used when frankfurter is unreachable.
 FXRATE_URL = "https://api.frankfurter.app/latest?from=CNY&to=JPY"
-FXRATE_CACHE_FILE = "/tmp/fxrate_cny_jpy.json"
+FXRATE_CACHE_FILE = os.path.join(
+    tempfile.gettempdir(), "fxrate_cny_jpy.json"
+)  # per-user temp dir: /tmp does not exist on Windows
 FXRATE_CACHE_TTL_S = 86400  # 24h
 FXRATE_FALLBACK_JPY_PER_CNY = 21.0  # rough modern level; flagged as 'fallback'
 _FXRATE_LOCK = threading.Lock()
@@ -816,7 +828,7 @@ def _get_cny_jpy_rate() -> tuple[float, str]:
     with _FXRATE_LOCK:
         # 1) Try cache (24h fresh)
         try:
-            with open(FXRATE_CACHE_FILE) as f:
+            with open(FXRATE_CACHE_FILE, encoding="utf-8") as f:
                 cached = json.load(f)
             if (
                 isinstance(cached, dict)
@@ -836,7 +848,7 @@ def _get_cny_jpy_rate() -> tuple[float, str]:
             rate = float((data.get("rates") or {}).get("JPY", 0))
             if rate > 0:
                 try:
-                    with open(FXRATE_CACHE_FILE, "w") as f:
+                    with open(FXRATE_CACHE_FILE, "w", encoding="utf-8") as f:
                         json.dump({"rate": rate, "fetched_at": time.time(),
                                    "source": "frankfurter", "as_of": data.get("date")}, f)
                 except OSError:
@@ -1963,7 +1975,7 @@ def fetch_html_playwright(url: str) -> tuple[int | None, str, str | None, dict[s
                 cwd=str(WORKSPACE_ROOT),
                 text=True,
                 capture_output=True,
-                timeout=45,
+                timeout=45, encoding="utf-8", errors="replace"
             )
             if proc.returncode == 0 and proc.stdout.strip():
                 nested = json.loads(proc.stdout)
@@ -3763,7 +3775,7 @@ def run_discover(args: argparse.Namespace) -> int:
         "count": len(filtered),
         "evaluated_at": now_iso(),
         "next_command": (
-            f"python3 .claude/skills/{args.caller_skill}/scripts/"
+            f"{('python' if os.name == 'nt' else 'python3')} .claude/skills/{args.caller_skill}/scripts/"
             "component_select.py --longlist <this_json> "
             "--project-path Projects/<name> --expected-role <role> --fetch-web --summary"
         ),

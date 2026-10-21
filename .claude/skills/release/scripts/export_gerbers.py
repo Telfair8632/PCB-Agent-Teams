@@ -102,7 +102,7 @@ def find_matching_schematic(pcb_path: Path, explicit: str | None = None) -> Path
 
 
 def run(cmd: list[str]) -> dict:
-    proc = subprocess.run(cmd, text=True, capture_output=True)
+    proc = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8", errors="replace")
     return {
         "cmd": cmd,
         "returncode": proc.returncode,
@@ -270,7 +270,7 @@ def export_fab(args: argparse.Namespace) -> dict:
         try:
             import csv as _csv
             import re as _re
-            pcb_text = pcb_path.read_text(errors="replace")
+            pcb_text = pcb_path.read_text(errors="replace", encoding="utf-8")
             dnp_refs = set()
             # anchor on each dnp attr, then backtrack to its own footprint's
             # Reference property (non-greedy block regex would span neighbors)

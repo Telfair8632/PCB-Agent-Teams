@@ -10,6 +10,15 @@ Zero external dependencies — Python stdlib only.
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import os
@@ -997,7 +1006,7 @@ def main():
     args = parser.parse_args()
 
     # Load analysis
-    with open(args.analysis) as f:
+    with open(args.analysis, encoding="utf-8") as f:
         analysis = json.load(f)
 
     # Load extractions
@@ -1047,7 +1056,7 @@ def main():
 
     if args.output:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(output_text)
         print(f"Written to {args.output}")
     else:

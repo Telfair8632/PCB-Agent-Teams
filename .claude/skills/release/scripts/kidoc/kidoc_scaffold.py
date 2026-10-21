@@ -342,7 +342,7 @@ def _auto_run_analyses(project_dir: str, analysis_dir: str,
         """Run an analysis subprocess with timeout, recording result."""
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120)
+                cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
             results[name] = result.returncode == 0
         except subprocess.TimeoutExpired:
             results[name] = False

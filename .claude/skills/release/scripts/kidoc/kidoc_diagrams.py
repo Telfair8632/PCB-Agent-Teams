@@ -47,7 +47,7 @@ def main():
                         help='Force regeneration (ignore cache)')
     args = parser.parse_args()
 
-    with open(args.analysis) as f:
+    with open(args.analysis, encoding="utf-8") as f:
         analysis = json.load(f)
 
     # Merge supplemental analysis data so matplotlib generators can find it.
@@ -55,12 +55,12 @@ def main():
     # thermal has thermal_assessments, EMC has emc_findings, SPICE has simulation_results.
     for path in (args.emc, args.thermal, args.spice):
         if path:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 analysis.update(json.load(f))
 
     config = {}
     if args.config:
-        with open(args.config) as f:
+        with open(args.config, encoding="utf-8") as f:
             config = json.load(f)
 
     generated = run_all(analysis, config, args.output, force=args.force)

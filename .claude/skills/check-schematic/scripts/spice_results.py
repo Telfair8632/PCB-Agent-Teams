@@ -6,6 +6,15 @@ This module parses those files and produces a structured report with
 pass/warn/fail/skip status for each simulation.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import math
 import re
 
@@ -26,7 +35,7 @@ def parse_output_file(filepath):
     """
     results = {}
     try:
-        with open(filepath, "r") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             content = f.read().strip()
     except (OSError, IOError):
         return results

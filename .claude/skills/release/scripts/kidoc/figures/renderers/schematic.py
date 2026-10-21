@@ -1420,7 +1420,7 @@ def render_schematic(sch_path: str, output_dir: str,
     # Load overlay data if provided
     overlay_data = None
     if overlay_json and os.path.isfile(overlay_json):
-        with open(overlay_json) as f:
+        with open(overlay_json, encoding="utf-8") as f:
             overlay_data = json.load(f)
 
     output_files = []
@@ -1521,7 +1521,7 @@ def main():
 
     pin_nets_data = None
     if args.pin_nets and os.path.isfile(args.pin_nets):
-        with open(args.pin_nets) as f:
+        with open(args.pin_nets, encoding="utf-8") as f:
             pin_nets_data = json.load(f)
 
     # If output looks like a file (has .svg extension), use its directory

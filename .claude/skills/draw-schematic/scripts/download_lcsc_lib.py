@@ -11,6 +11,15 @@ Probe-only:
 依赖: easyeda2kicad（已装在 PCB-Agent-Teams/.venv/）
 不需要 API key。
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import os
 import re
@@ -59,7 +68,7 @@ def download_one(lcsc_id: str, lib_name: str) -> bool:
         "--output", str(out),
         "--overwrite",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     return "Created 3D model" in result.stdout or result.returncode == 0
 
 
@@ -104,7 +113,7 @@ def verify_one(mpn: str) -> dict:
             "--overwrite",
         ]
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
         except Exception as e:
             result["error"] = f"easyeda2kicad exception: {type(e).__name__}: {e}"
             return result
@@ -147,7 +156,7 @@ def get_pin_count(sym_file: Path, sym_name_prefix: str) -> int:
     """从 .kicad_sym 数指定 symbol 的 pin 数。"""
     if not sym_file.exists():
         return 0
-    text = sym_file.read_text()
+    text = sym_file.read_text(encoding="utf-8")
     # 找 _0_1 子符号（含 pin 定义的那一段）
     pattern = rf'\(symbol\s+"{re.escape(sym_name_prefix)}[^"]*_0_1"(.+?)(?=\(symbol\s+"[A-Z]|\Z)'
     m = re.search(pattern, text, re.DOTALL)
@@ -160,7 +169,7 @@ def get_symbol_metadata(sym_file: Path, mpn: str) -> dict:
     """Find the top-level vendored symbol and its bound footprint property."""
     if not sym_file.exists():
         return {"symbol": "", "footprint": ""}
-    text = sym_file.read_text(errors="replace")
+    text = sym_file.read_text(errors="replace", encoding="utf-8")
     matches = list(re.finditer(r'^[ \t]+\(symbol\s+"([^"]+)"', text, re.MULTILINE))
     norm_mpn = mpn.upper().replace("-", "").replace("_", "").replace("/", "")
     for i, m in enumerate(matches):
@@ -196,10 +205,10 @@ def update_readme(lib_name: str, downloads: list[dict]):
             "每个 KiCad 项目共享，避免重复下载。\n\n"
             "## 元件清单\n\n"
             "| MPN | LCSC ID | Pin 数 | 下载日期 | 备注 |\n"
-            "|---|---|---|---|---|\n"
+            "|---|---|---|---|---|\n", encoding="utf-8"
         )
 
-    text = readme.read_text()
+    text = readme.read_text(encoding="utf-8")
     lines = text.splitlines()
     for d in downloads:
         meta = get_symbol_metadata(LIB_EXTERNAL / f"{lib_name}.kicad_sym", d["mpn"])
@@ -213,7 +222,7 @@ def update_readme(lib_name: str, downloads: list[dict]):
         row_prefix = f"| {d['mpn']} |"
         lines = [ln for ln in lines if not ln.startswith(row_prefix)]
         lines.append(new_line)
-    readme.write_text("\n".join(lines) + "\n")
+    readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main():

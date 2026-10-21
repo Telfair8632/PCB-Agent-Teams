@@ -30,6 +30,6 @@ def render_all(context: dict, out_dir: Path) -> dict[str, Path]:
         template = env.get_template(f"{name}.tmpl")
         rendered = template.render(**context)
         path = out_dir / name
-        path.write_text(rendered)
+        path.write_text(rendered, encoding="utf-8")
         written[name] = path
     return written

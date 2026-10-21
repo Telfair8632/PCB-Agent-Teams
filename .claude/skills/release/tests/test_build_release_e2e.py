@@ -15,8 +15,8 @@ def _make_fixture_project(tmp_path: Path) -> Path:
     (proj / "datasheets" / "component_selecting").mkdir(parents=True)
     (proj / "reports").mkdir(parents=True)
 
-    (proj / "kicad" / "fixture_proj.kicad_pcb").write_text("(kicad_pcb (version 20221018))")
-    (proj / "kicad" / "fixture_proj.py").write_text("# circuit-synth source")
+    (proj / "kicad" / "fixture_proj.kicad_pcb").write_text("(kicad_pcb (version 20221018))", encoding="utf-8")
+    (proj / "kicad" / "fixture_proj.py").write_text("# circuit-synth source", encoding="utf-8")
 
     py = proj / "kicad" / "fixture_proj.py"
     sentinel = {
@@ -27,11 +27,11 @@ def _make_fixture_project(tmp_path: Path) -> Path:
         "components": [],
         "summary": {"total": 1, "pass": 1, "fail": 0},
     }
-    (proj / "datasheets" / ".bom_readiness.json").write_text(json.dumps(sentinel))
+    (proj / "datasheets" / ".bom_readiness.json").write_text(json.dumps(sentinel), encoding="utf-8")
 
     bom = "Qty,Refs,MPN,Category,Footprint,Vendor_Status,Vendor_Stock,Vendor_Url,Datasheet\n"
     bom += "1,U1,AMC1311BDWVR,ic,SOIC-8,active,12756,https://example.com,foo.pdf\n"
-    (proj / "datasheets" / "bom_fixture_proj.csv").write_text(bom)
+    (proj / "datasheets" / "bom_fixture_proj.csv").write_text(bom, encoding="utf-8")
 
     evidence = {
         "schema_version": "phase2.5_v1",
@@ -45,7 +45,7 @@ def _make_fixture_project(tmp_path: Path) -> Path:
         },
     }
     (proj / "datasheets" / "component_selecting" / "AMC1311BDWVR.json").write_text(
-        json.dumps(evidence)
+        json.dumps(evidence), encoding="utf-8"
     )
 
     (proj / "datasheets" / "AMC1311BDWVR.pdf").write_bytes(b"%PDF-1.4 fake")
@@ -60,7 +60,7 @@ def _make_fixture_project(tmp_path: Path) -> Path:
         "brand": "any",
         "price_vs_stock": "balanced",
         "blacklist_mpns": [],
-    }))
+    }), encoding="utf-8")
 
     return proj
 
@@ -123,9 +123,9 @@ def test_build_release_fails_gate_when_sentinel_missing(tmp_path):
 def test_build_release_fails_gate_when_all_pass_false(tmp_path):
     proj = _make_fixture_project(tmp_path)
     sentinel_path = proj / "datasheets" / ".bom_readiness.json"
-    s = json.loads(sentinel_path.read_text())
+    s = json.loads(sentinel_path.read_text(encoding="utf-8"))
     s["all_pass"] = False
-    sentinel_path.write_text(json.dumps(s))
+    sentinel_path.write_text(json.dumps(s), encoding="utf-8")
     rc = build_release.main([str(proj), "--skip-fab-export"])
     assert rc == 1
 
@@ -133,9 +133,9 @@ def test_build_release_fails_gate_when_all_pass_false(tmp_path):
 def test_build_release_fails_gate_when_pcb_modified_after_sentinel(tmp_path):
     proj = _make_fixture_project(tmp_path)
     sentinel_path = proj / "datasheets" / ".bom_readiness.json"
-    s = json.loads(sentinel_path.read_text())
+    s = json.loads(sentinel_path.read_text(encoding="utf-8"))
     s["verified_at"] = "2000-01-01T00:00:00Z"  # very old
-    sentinel_path.write_text(json.dumps(s))
+    sentinel_path.write_text(json.dumps(s), encoding="utf-8")
 
     pcb = proj / "kicad" / "fixture_proj.kicad_pcb"
     time.sleep(0.05)

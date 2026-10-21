@@ -189,7 +189,7 @@ def simulate_subcircuits(analysis_json, workdir=None, timeout=5, types=None,
         if isinstance(cir_content, SpiceTestbench):
             cir_content = cir_content.render(simulator_backend, out_file_spice)
 
-        with open(cir_file, "w") as f:
+        with open(cir_file, "w", encoding="utf-8") as f:
             f.write(cir_content)
 
         t0 = time.monotonic()
@@ -200,7 +200,7 @@ def simulate_subcircuits(analysis_json, workdir=None, timeout=5, types=None,
         elapsed = time.monotonic() - t0
         total_time += elapsed
 
-        with open(log_file, "w") as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             f.write(f"=== stdout ===\n{stdout}\n=== stderr ===\n{stderr}\n")
 
         if not success:
@@ -604,7 +604,7 @@ def main():
 
     # Read analysis JSON
     try:
-        with open(input_path, "r") as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             analysis = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading {input_path}: {e}", file=sys.stderr)
@@ -625,7 +625,7 @@ def main():
     parasitics_data = None
     if args.parasitics:
         try:
-            with open(args.parasitics, "r") as f:
+            with open(args.parasitics, "r", encoding="utf-8") as f:
                 parasitics_data = json.load(f)
             n_nets = len(parasitics_data.get("nets", {}))
             print(f"Loaded parasitics for {n_nets} nets from {args.parasitics}",
@@ -671,7 +671,7 @@ def main():
             save_manifest(analysis_dir, _empty_manifest())
         gitignore_path = os.path.join(analysis_dir, '.gitignore')
         if not os.path.isfile(gitignore_path):
-            with open(gitignore_path, 'w') as f:
+            with open(gitignore_path, 'w', encoding="utf-8") as f:
                 f.write(GITIGNORE_CONTENT)
 
         source_hashes = {}
@@ -682,7 +682,7 @@ def main():
         with tempfile.TemporaryDirectory() as tmpdir:
             canonical = CANONICAL_OUTPUTS.get('spice', 'spice.json')
             tmp_out = os.path.join(tmpdir, canonical)
-            with open(tmp_out, 'w') as f:
+            with open(tmp_out, 'w', encoding="utf-8") as f:
                 json.dump(report, f, indent=2)
 
             if should_create_new_run(analysis_dir, tmpdir):
@@ -700,7 +700,7 @@ def main():
     # Output
     output_json = json.dumps(report, indent=2)
     if args.output:
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(output_json)
         # Print summary to stderr
         s = report["summary"]

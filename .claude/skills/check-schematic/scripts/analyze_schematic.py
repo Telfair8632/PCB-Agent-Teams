@@ -15,6 +15,15 @@ Usage:
 Output is JSON to stdout (or file if --output specified).
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import math
 import os
@@ -5211,7 +5220,7 @@ def check_generic_transistor_symbols(components: list[dict],
             idx_path = ds_dir / "index.json"
         if idx_path.is_file():
             try:
-                ds_index = json.loads(idx_path.read_text())
+                ds_index = json.loads(idx_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 pass
 
@@ -6462,7 +6471,7 @@ def analyze_voltage_derating(ctx: AnalysisContext, signal_analysis: dict,
                 idx_path = extracted_dir / "index.json"
             if idx_path.exists():
                 try:
-                    with open(idx_path) as f:
+                    with open(idx_path, encoding="utf-8") as f:
                         idx = json.load(f)
                     for k, v in idx.get("extractions", {}).items():
                         if k.upper() == sanitized.upper():
@@ -6473,7 +6482,7 @@ def analyze_voltage_derating(ctx: AnalysisContext, signal_analysis: dict,
             if not extract_path.exists():
                 return None
         try:
-            with open(extract_path) as f:
+            with open(extract_path, encoding="utf-8") as f:
                 return json.load(f).get("absolute_maximum_ratings")
         except (json.JSONDecodeError, OSError):
             return None
@@ -9303,14 +9312,14 @@ def main():
             pass
         gitignore_path = os.path.join(analysis_dir, '.gitignore')
         if not _track_in_git and not os.path.isfile(gitignore_path):
-            with open(gitignore_path, 'w') as f:
+            with open(gitignore_path, 'w', encoding="utf-8") as f:
                 f.write(GITIGNORE_CONTENT)
 
         source_hashes = {os.path.basename(args.schematic): hash_source_file(args.schematic)}
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_file = os.path.join(tmp_dir, CANONICAL_OUTPUTS.get("schematic", "schematic.json"))
-            Path(out_file).write_text(output)
+            Path(out_file).write_text(output, encoding="utf-8")
 
             if should_create_new_run(analysis_dir, tmp_dir):
                 run_id = create_run(
@@ -9325,7 +9334,7 @@ def main():
                 print(f"Analysis cache updated (current run)", file=sys.stderr)
 
     elif args.output:
-        Path(args.output).write_text(output)
+        Path(args.output).write_text(output, encoding="utf-8")
         print(f"Written to {args.output}", file=sys.stderr)
     else:
         print(output)

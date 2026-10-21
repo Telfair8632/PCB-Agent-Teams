@@ -1035,7 +1035,7 @@ def _extract_trends(analysis_dir, output_type, n_runs):
         if not os.path.isfile(path):
             continue
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError):
             continue
@@ -1203,14 +1203,14 @@ def main():
 
     # Load inputs
     try:
-        with open(args.base) as f:
+        with open(args.base, encoding="utf-8") as f:
             base = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading base file {args.base}: {e}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        with open(args.head) as f:
+        with open(args.head, encoding="utf-8") as f:
             head = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading head file {args.head}: {e}", file=sys.stderr)
@@ -1267,14 +1267,14 @@ def main():
     if args.text:
         text = format_text(output)
         if args.output:
-            with open(args.output, "w") as f:
+            with open(args.output, "w", encoding="utf-8") as f:
                 f.write(text)
         else:
             print(text)
     else:
         output_json = json.dumps(output, indent=2)
         if args.output:
-            with open(args.output, "w") as f:
+            with open(args.output, "w", encoding="utf-8") as f:
                 f.write(output_json)
         else:
             print(output_json)

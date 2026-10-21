@@ -85,7 +85,7 @@ def _get_digikey_token() -> str | None:
     # Check cache
     try:
         if os.path.exists(cache_path):
-            with open(cache_path) as f:
+            with open(cache_path, encoding="utf-8") as f:
                 cached = json.load(f)
             if (cached.get("client_id") == client_id
                     and cached.get("expires_at", 0) > time.time()):
@@ -114,7 +114,7 @@ def _get_digikey_token() -> str | None:
 
         # Cache with 9-minute TTL (token lasts 10 min, 1 min safety margin)
         try:
-            with open(cache_path, "w") as f:
+            with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump({
                     "token": token,
                     "client_id": client_id,
@@ -335,7 +335,7 @@ def _extract_pdf_text(pdf_path: str, max_pages: int = 3) -> str:
     try:
         result = subprocess.run(
             ["pdftotext", "-l", str(max_pages), pdf_path, "-"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace"
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout

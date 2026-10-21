@@ -10,6 +10,15 @@ the gate will switch to that — see spec §10.)
 
 from __future__ import annotations
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import os
@@ -88,7 +97,7 @@ def _check_gate(project_dir: Path) -> tuple[bool, str, dict]:
     if not sentinel_path.exists():
         return False, f"bom-readiness sentinel missing: {sentinel_path}", {}
     try:
-        sentinel = json.loads(sentinel_path.read_text())
+        sentinel = json.loads(sentinel_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         return False, f"sentinel not valid JSON: {e}", {}
     if not sentinel.get("all_pass"):
@@ -137,7 +146,7 @@ def _board_summary(pcb_path: Path) -> dict:
         except Exception:
             pass
     try:
-        text = pcb_path.read_text(errors="replace")
+        text = pcb_path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return summary
     n_tht = text.count("(attr through_hole")
@@ -170,7 +179,7 @@ def _step_export_gerbers(project_dir: Path, release_pcb_dir: Path, skip: bool) -
     if skip:
         release_pcb_dir.mkdir(parents=True, exist_ok=True)
         (release_pcb_dir / ".SKIPPED").write_text(
-            "export_gerbers skipped via --skip-fab-export\n"
+            "export_gerbers skipped via --skip-fab-export\n", encoding="utf-8"
         )
         return
     pcb = _find_pcb(project_dir)
@@ -216,7 +225,7 @@ def _replay_kicad_commands(manifest_path: Path) -> list[dict]:
 
     Returns per-step result dicts: {step, returncode, ok}.
     """
-    manifest = json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     commands = manifest.get("commands") or {}
     if not commands:
         raise RuntimeError(f"manifest has no commands section: {manifest_path}")
@@ -227,7 +236,7 @@ def _replay_kicad_commands(manifest_path: Path) -> list[dict]:
             results.append({"step": step_name, "ok": False, "returncode": None,
                            "error": "no cmd recorded"})
             continue
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         results.append({
             "step": step_name,
             "ok": proc.returncode == 0,
@@ -311,7 +320,7 @@ def _step_copy_docs(project_dir: Path, release_docs_dir: Path) -> None:
         for pdf in src.glob("*.pdf"):
             shutil.copy2(pdf, release_docs_dir / pdf.name)
     if not any(release_docs_dir.iterdir()):
-        (release_docs_dir / ".gitkeep").write_text("")
+        (release_docs_dir / ".gitkeep").write_text("", encoding="utf-8")
 
 
 def _step_zip_release(release_dir: Path, release_id: str) -> Path:
@@ -343,7 +352,7 @@ def _write_manifest(
         },
     }
     path = release_dir / "release_manifest.json"
-    path.write_text(json.dumps(manifest, indent=2))
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return path
 
 

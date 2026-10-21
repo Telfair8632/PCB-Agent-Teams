@@ -5,6 +5,15 @@ because everything under test is plain rectangle arithmetic. Fixtures are
 constructed, not lifted from a layout: replaying a real board proves only
 that its numbers were transcribed.
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import importlib.util
 import sys
 import types

@@ -23,6 +23,15 @@
     0  全过 → sentinel 写入，可进 draw-schematic
     1  有 fail → 修了再来
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import glob
 import json
@@ -521,7 +530,7 @@ def _pdf_page_count(pdf_path: Path) -> Optional[int]:
             ["pdfinfo", str(pdf_path)],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5, encoding="utf-8", errors="replace"
         )
         if r.returncode != 0:
             return None
@@ -601,7 +610,7 @@ def build_symbol_index() -> Dict[tuple, Path]:
         for sym_file in base.glob("*.kicad_sym"):
             lib_name = sym_file.stem
             try:
-                text = sym_file.read_text(errors="replace")
+                text = sym_file.read_text(errors="replace", encoding="utf-8")
             except Exception:
                 continue
             for m in _TOPLEVEL_SYMBOL_PAT.finditer(text):
@@ -685,7 +694,7 @@ def _datasheet_package_class(pdf_path: Optional[Path]) -> Dict:
     try:
         out = subprocess.run(
             ["pdftotext", "-layout", "-q", str(pdf_path), "-"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, timeout=20, encoding="utf-8", errors="replace"
         )
         text = out.stdout.lower() if out.returncode == 0 else ""
     except Exception as e:
@@ -879,7 +888,7 @@ def check_mpn_consistency(components: List[Dict],
         result["reason"] = "no CLAUDE.md"
         return result
 
-    md = Path(claude_md_path).read_text()
+    md = Path(claude_md_path).read_text(encoding="utf-8")
     lines = md.splitlines()
     result["checked"] = True
     result["claude_md"] = str(claude_md_path)
@@ -1272,7 +1281,7 @@ def main():
         # 审查模式：只输出报告 JSON 到 stdout 旁路 + 不写 sentinel
         audit_report_path = ds_dir / f".bom_readiness_audit_{int(time.time())}.json"
         audit_report_path.parent.mkdir(parents=True, exist_ok=True)
-        audit_report_path.write_text(json.dumps(sentinel, indent=2, ensure_ascii=False))
+        audit_report_path.write_text(json.dumps(sentinel, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"  📋 审查报告：{audit_report_path}")
         print(f"  ℹ️  审查模式不写 sentinel — draw-schematic 看不到这次结果")
         if all_pass:
@@ -1303,7 +1312,7 @@ def main():
 
     sentinel_path = ds_dir / ".bom_readiness.json"
     sentinel_path.parent.mkdir(parents=True, exist_ok=True)
-    sentinel_path.write_text(json.dumps(sentinel, indent=2, ensure_ascii=False))
+    sentinel_path.write_text(json.dumps(sentinel, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"  Sentinel：{sentinel_path}")
     if all_pass:
         print(f"\n✅ BOM 验过，可进 draw-schematic")

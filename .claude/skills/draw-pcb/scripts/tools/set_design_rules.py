@@ -83,7 +83,7 @@ def set_design_rules(pcb_path: str, values: dict, netclass: str = "Default",
                 "project file first (create_pcb does), or copy it in."}
 
     try:
-        pro = json.loads(pro_path.read_text())
+        pro = json.loads(pro_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         return {"ok": False, "error": f"{pro_path.name} is not valid JSON: {e}"}
 
@@ -150,11 +150,11 @@ def set_design_rules(pcb_path: str, values: dict, netclass: str = "Default",
                     f"{nc_key.replace('_', ' ')} on the board")
 
     if changed:
-        pro_path.write_text(json.dumps(pro, indent=2))
+        pro_path.write_text(json.dumps(pro, indent=2), encoding="utf-8")
 
     # Read back from disk: the point of the tool is reporting what is in
     # effect, not what we believe we wrote.
-    verify = json.loads(pro_path.read_text())
+    verify = json.loads(pro_path.read_text(encoding="utf-8"))
     v_rules = verify.get("board", {}).get("design_settings", {}).get("rules", {})
     v_class = next((c for c in verify.get("net_settings", {}).get("classes", [])
                     if c.get("name") == netclass), {})

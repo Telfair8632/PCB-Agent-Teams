@@ -14,6 +14,15 @@ Usage:
     python sch_to_pcb.py <project_dir>
     python sch_to_pcb.py <sch_file> --output <pcb_file>
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import glob
 import json
@@ -148,7 +157,7 @@ def export_netlist(sch_path: Path, out_path: Path) -> bool:
     cmd = [KICAD_CLI, "sch", "export", "netlist",
            "--format", "kicadsexpr",
            "-o", str(out_path), str(sch_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         print(f"❌ netlist export failed: {proc.stderr}", file=sys.stderr)
         return False
@@ -157,7 +166,7 @@ def export_netlist(sch_path: Path, out_path: Path) -> bool:
 
 def parse_netlist(net_path: Path) -> Tuple[List[Dict], List[Dict]]:
     """Parse kicadsexpr netlist → (components, nets)."""
-    text = net_path.read_text()
+    text = net_path.read_text(encoding="utf-8")
     forms = parse_sexp(text)
     if not forms:
         return [], []
@@ -244,12 +253,12 @@ def create_pcb_from_sch(sch_path: Path, pcb_path: Path) -> Dict:
             "output_pcb": str(pcb_path),
         }
         input_json = Path(td) / "spec.json"
-        input_json.write_text(json.dumps(spec, ensure_ascii=False))
+        input_json.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
 
         # 4. Subprocess call to KiCad Python
         cmd = [KICAD_PYTHON, str(HELPER_SCRIPT), "--input", str(input_json)]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
         except subprocess.TimeoutExpired:
             return {"ok": False, "error": "pcbnew helper timed out"}
 

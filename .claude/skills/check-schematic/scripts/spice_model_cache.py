@@ -106,7 +106,7 @@ def get_cached_model(cache_dir, mpn):
         if cached and cached[0] == mtime:
             index = cached[1]
         else:
-            with open(index_path) as f:
+            with open(index_path, encoding="utf-8") as f:
                 index = json.load(f)
             _index_cache[cache_key] = (mtime, index)
     except (json.JSONDecodeError, OSError):
@@ -122,7 +122,7 @@ def get_cached_model(cache_dir, mpn):
         return None, None
 
     try:
-        subckt = model_file.read_text()
+        subckt = model_file.read_text(encoding="utf-8")
         return subckt, entry.get("specs", {})
     except OSError:
         return None, None
@@ -147,14 +147,14 @@ def cache_model(cache_dir, mpn, subckt, specs, source, component_type):
     model_path = cache_dir / filename
 
     # Write .sub file
-    model_path.write_text(subckt)
+    model_path.write_text(subckt, encoding="utf-8")
 
     # Update manifest (prefer existing file; always write to manifest.json)
     read_path = _cache_manifest_path(cache_dir)
     index = {}
     if read_path.exists():
         try:
-            with open(read_path) as f:
+            with open(read_path, encoding="utf-8") as f:
                 index = json.load(f)
         except (json.JSONDecodeError, OSError):
             index = {}
@@ -170,7 +170,7 @@ def cache_model(cache_dir, mpn, subckt, specs, source, component_type):
     }
 
     write_path = cache_dir / MANIFEST_FILENAME
-    with open(write_path, "w") as f:
+    with open(write_path, "w", encoding="utf-8") as f:
         json.dump(index, f, indent=2)
 
     # Remove legacy file after successful migration

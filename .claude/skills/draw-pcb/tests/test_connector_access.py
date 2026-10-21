@@ -61,7 +61,7 @@ def _board(tmp_path: Path, parts, edges=None, name="sample_project"):
     text += parts
     text.append(")")
     p = tmp_path / f"{name}.kicad_pcb"
-    p.write_text("\n".join(text))
+    p.write_text("\n".join(text), encoding="utf-8")
     return str(p)
 
 
@@ -105,7 +105,7 @@ def board(tmp_path: Path) -> str:
     text += parts
     text.append(")")
     p = tmp_path / "sample_project.kicad_pcb"
-    p.write_text("\n".join(text))
+    p.write_text("\n".join(text), encoding="utf-8")
     return str(p)
 
 
@@ -210,7 +210,7 @@ def test_broken_outline_is_not_a_datasheet_problem(tmp_path):
                 body=_TERMINAL_BODY),
             ")"]
     p = tmp_path / "sample_project.kicad_pcb"
-    p.write_text("\n".join(text))
+    p.write_text("\n".join(text), encoding="utf-8")
 
     j1 = _by_ref(check_connector_access(str(p)))["J1"]
     assert j1["status"] == "undetermined"
@@ -241,7 +241,7 @@ def test_gate_clears_when_everything_is_right(tmp_path):
                     body=_TERMINAL_BODY))
     text.append(")")
     p = tmp_path / "sample_project.kicad_pcb"
-    p.write_text("\n".join(text))
+    p.write_text("\n".join(text), encoding="utf-8")
 
     res = check_connector_access(str(p))
     assert res["hard_fail"] is False
@@ -279,7 +279,7 @@ def test_rotating_the_broken_part_fixes_it(tmp_path):
                         body=_TERMINAL_BODY))
         text.append(")")
         p = tmp_path / f"sample_{angle}.kicad_pcb"
-        p.write_text("\n".join(text))
+        p.write_text("\n".join(text), encoding="utf-8")
         verdicts[angle] = _by_ref(check_connector_access(str(p)))["J1"]["status"]
 
     assert verdicts[90] == "faces_inward"

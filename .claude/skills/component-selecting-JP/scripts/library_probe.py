@@ -754,7 +754,7 @@ def _network_probe_lcsc(mpn: str, timeout_sec: int = 30) -> dict:
             res = subprocess.run(
                 [sys.executable, str(downloader), "--verify-only", mpn],
                 cwd=str(WORKSPACE_ROOT),
-                capture_output=True, text=True, timeout=timeout_sec,
+                capture_output=True, text=True, timeout=timeout_sec, encoding="utf-8", errors="replace"
             )
         except Exception as e:
             out["error"] = f"{type(e).__name__}: {e}"

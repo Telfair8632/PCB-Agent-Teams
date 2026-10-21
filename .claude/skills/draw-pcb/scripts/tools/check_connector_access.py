@@ -866,7 +866,7 @@ def main() -> int:
             print(json.dumps({"ok": False,
                               "error": f"not found: {args.declare}"}))
             return 1
-        declare = json.loads(Path(args.declare).read_text())
+        declare = json.loads(Path(args.declare).read_text(encoding="utf-8"))
 
     def _set(v):
         return {r.strip() for r in v.split(",") if r.strip()} if v else None

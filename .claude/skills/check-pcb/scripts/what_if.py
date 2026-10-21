@@ -16,6 +16,15 @@ Usage:
 Zero dependencies — Python 3.8+ stdlib only.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import copy
 import json
@@ -1200,7 +1209,7 @@ def _run_emc_preview(analysis: dict, patched_json: dict,
                 cmd.extend(["--pcb", pcb_path])
             subprocess.run(cmd, capture_output=True, timeout=30, check=False)
             if os.path.exists(out_path):
-                with open(out_path) as f:
+                with open(out_path, encoding="utf-8") as f:
                     return json.load(f)
         except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as e:
             print(f"Warning: EMC analysis failed: {e}", file=sys.stderr)
@@ -1279,7 +1288,7 @@ def main():
 
     # Load analysis JSON
     try:
-        with open(args.input) as f:
+        with open(args.input, encoding="utf-8") as f:
             analysis = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading {args.input}: {e}", file=sys.stderr)
@@ -1301,7 +1310,7 @@ def main():
     pcb_analysis = None
     if pcb_path:
         try:
-            with open(pcb_path) as f:
+            with open(pcb_path, encoding="utf-8") as f:
                 pcb_analysis = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             print(f"Warning: cannot load PCB analysis: {e}", file=sys.stderr)
@@ -1309,7 +1318,7 @@ def main():
         auto_pcb = _find_pcb_analysis(args.input)
         if auto_pcb:
             try:
-                with open(auto_pcb) as f:
+                with open(auto_pcb, encoding="utf-8") as f:
                     pcb_analysis = json.load(f)
             except (json.JSONDecodeError, OSError):
                 pass
@@ -1525,7 +1534,7 @@ def main():
     # Export patched JSON if requested
     if args.output:
         patched_json = _patch_full_json(analysis, affected, patched_dets, changes_legacy)
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             json.dump(patched_json, f, indent=2)
         print(f"Patched JSON written to {args.output}", file=sys.stderr)
 

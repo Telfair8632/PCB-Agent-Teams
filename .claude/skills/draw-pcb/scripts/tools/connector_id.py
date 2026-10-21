@@ -27,6 +27,15 @@ Classification (a part is an interface part if ANY fires):
   3. caller passed it in `include`                                 (explicit)
 …unless a veto fires first (library family or explicit never-list).
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import re
 
 # Library families that are never interface parts, whatever their part name

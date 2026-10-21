@@ -3,6 +3,15 @@ Regression tests for inject_mpn_props.py.
 
 Run: python3 tests/test_inject_mpn_props.py
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import shutil
 import sys
@@ -21,9 +30,9 @@ def _setup_tmp_project():
     shutil.copytree(FIXTURE_DIR, tmp / "sample_project")
     py = tmp / "sample_project" / "sample_project.py"
     sentinel = tmp / "sample_project" / "datasheets" / ".bom_readiness.json"
-    s = json.loads(sentinel.read_text())
+    s = json.loads(sentinel.read_text(encoding="utf-8"))
     s["py_mtime"] = int(py.stat().st_mtime)
-    sentinel.write_text(json.dumps(s))
+    sentinel.write_text(json.dumps(s), encoding="utf-8")
     return tmp / "sample_project", py
 
 
@@ -46,7 +55,7 @@ def test_inject_kwargs_format():
     sentinel = _load_sentinel(py)
     n, _log = inject(py, sentinel, dry_run=False)
     assert n == 2, f"Expected 2 injections (U1+R2), got {n}"
-    src = py.read_text()
+    src = py.read_text(encoding="utf-8")
     # U1 should have all three direct kwargs
     assert 'MPN="TLV70033DDCR"' in src
     assert 'Manufacturer="Texas Instruments"' in src
@@ -64,9 +73,9 @@ def test_idempotent():
     proj, py = _setup_tmp_project()
     sentinel = _load_sentinel(py)
     inject(py, sentinel, dry_run=False)
-    src1 = py.read_text()
+    src1 = py.read_text(encoding="utf-8")
     n2, _log = inject(py, sentinel, dry_run=False)
-    src2 = py.read_text()
+    src2 = py.read_text(encoding="utf-8")
     assert n2 == 0, f"Second pass injected {n2}; should be 0 (idempotent)"
     assert src1 == src2, "Re-run modified file"
     shutil.rmtree(proj.parent)
@@ -78,7 +87,7 @@ def test_skip_generic_passive():
     proj, py = _setup_tmp_project()
     sentinel = _load_sentinel(py)
     inject(py, sentinel, dry_run=False)
-    src = py.read_text()
+    src = py.read_text(encoding="utf-8")
     # R1 line should NOT have MPN= kwarg
     r1_lines = [l for l in src.split('\n') if 'ref="R1"' in l]
     assert len(r1_lines) == 1

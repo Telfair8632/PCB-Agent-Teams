@@ -388,7 +388,7 @@ def main():
     pcb = None
 
     if args.schematic:
-        with open(args.schematic, 'r') as f:
+        with open(args.schematic, 'r', encoding="utf-8") as f:
             schematic = json.load(f)
         if 'signal_analysis' in schematic and 'findings' not in schematic:
             print(f'Error: {args.schematic} uses the pre-v1.3 '
@@ -398,12 +398,12 @@ def main():
             sys.exit(1)
 
     if args.pcb:
-        with open(args.pcb, 'r') as f:
+        with open(args.pcb, 'r', encoding="utf-8") as f:
             pcb = json.load(f)
 
     thermal = None
     if args.thermal:
-        with open(args.thermal, 'r') as f:
+        with open(args.thermal, 'r', encoding="utf-8") as f:
             thermal = json.load(f)
 
     # Effective severity threshold
@@ -580,7 +580,7 @@ def main():
             save_manifest(analysis_dir, manifest)
         gitignore_path = os.path.join(analysis_dir, '.gitignore')
         if not os.path.isfile(gitignore_path):
-            with open(gitignore_path, 'w') as f:
+            with open(gitignore_path, 'w', encoding="utf-8") as f:
                 f.write(GITIGNORE_CONTENT)
 
         # Hash the schematic JSON that was consumed (primary input)
@@ -598,7 +598,7 @@ def main():
         with tempfile.TemporaryDirectory() as tmpdir:
             canonical = CANONICAL_OUTPUTS.get('emc', 'emc.json')
             tmp_out = os.path.join(tmpdir, canonical)
-            with open(tmp_out, 'w') as f:
+            with open(tmp_out, 'w', encoding="utf-8") as f:
                 json.dump(result, f, indent=2)
 
             if should_create_new_run(analysis_dir, tmpdir):
@@ -615,7 +615,7 @@ def main():
 
     # Output
     if args.output:
-        with open(args.output, 'w') as f:
+        with open(args.output, 'w', encoding="utf-8") as f:
             json.dump(result, f, indent=2)
         print(f'EMC analysis complete: {len(findings)} findings '
               f'(score {risk_score}/100) → {args.output}', file=sys.stderr)

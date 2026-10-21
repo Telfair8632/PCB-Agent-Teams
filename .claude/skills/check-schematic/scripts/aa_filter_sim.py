@@ -32,6 +32,15 @@ exit 1 if ngspice not found or analyzer JSON unreadable.
 This is intentionally project-agnostic — no MPN strings, no domain-specific
 heuristics.  Drop in any project's analyzer JSON.
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -423,7 +432,7 @@ def write_se_aa_cir(cand, cir_path):
     lines.append("print g_dc fc_3db vlin_dc")
     lines.append(".endc")
     lines.append(".end")
-    cir_path.write_text('\n'.join(lines))
+    cir_path.write_text('\n'.join(lines), encoding="utf-8")
 
 
 def write_diff_aa_cir(cand, cir_path):
@@ -459,7 +468,7 @@ def write_diff_aa_cir(cand, cir_path):
     lines.append("print g_dc fc_3db")
     lines.append(".endc")
     lines.append(".end")
-    cir_path.write_text('\n'.join(lines))
+    cir_path.write_text('\n'.join(lines), encoding="utf-8")
 
 
 _MEAS_RE = re.compile(r'^([a-zA-Z_][\w]*)\s*=\s*([-\d.eE+]+)', re.M)
@@ -469,7 +478,7 @@ def run_ngspice(cir_path, ngspice_bin, timeout=10):
     try:
         result = subprocess.run(
             [ngspice_bin, '-b', str(cir_path)],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
         )
     except subprocess.TimeoutExpired:
         return {'error': 'timeout', 'stdout': '', 'stderr': ''}
@@ -565,7 +574,7 @@ def _parse_spec_fc_from_claude_md(claude_md_path: Path) -> list:
     """
     if not claude_md_path or not claude_md_path.exists():
         return []
-    text = claude_md_path.read_text(errors='ignore')
+    text = claude_md_path.read_text(errors='ignore', encoding="utf-8")
     seen = []
     for line in text.splitlines():
         if not _FC_LINE_RE.search(line):
@@ -613,7 +622,7 @@ def main():
         print(f'ngspice not found at {ngspice}', file=sys.stderr)
         sys.exit(1)
 
-    analysis = json.loads(Path(args.analysis_json).read_text())
+    analysis = json.loads(Path(args.analysis_json).read_text(encoding="utf-8"))
 
     spec_fc_list = list(args.spec_fc or [])
     if not spec_fc_list and args.claude_md is not None:
@@ -719,7 +728,7 @@ def main():
     }
     payload = json.dumps(report, indent=2, ensure_ascii=False, default=str)
     if args.output:
-        Path(args.output).write_text(payload)
+        Path(args.output).write_text(payload, encoding="utf-8")
         bits = [f"{summary['pass']} pass"]
         if summary['numeric_only']:
             bits.append(f"{summary['numeric_only']} numeric_only")

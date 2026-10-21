@@ -289,7 +289,7 @@ def find_existing_issues(repo: str, rule_id: str) -> list[dict]:
             ],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=30, encoding="utf-8", errors="replace"
         )
         if result.returncode != 0:
             return []
@@ -329,7 +329,7 @@ def create_issue(
             cmd,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=60, encoding="utf-8", errors="replace"
         )
         if result.returncode == 0:
             return result.stdout.strip() or None

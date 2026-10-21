@@ -5,6 +5,15 @@ Contains component classification, value parsing, net name classification,
 and other helpers extracted from analyze_schematic.py.
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import math
 import os
 import re
@@ -1441,7 +1450,7 @@ def load_kicad_pro(file_path: str) -> dict | None:
         if fname.endswith('.kicad_pro'):
             pro_path = os.path.join(parent, fname)
             try:
-                with open(pro_path) as f:
+                with open(pro_path, encoding="utf-8") as f:
                     return _json.load(f)
             except (ValueError, OSError):
                 return None

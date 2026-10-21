@@ -74,10 +74,10 @@ def test_transform_to_lcsc_columns_and_values():
 def test_round_trip_through_csv_writer(tmp_path):
     out = tmp_path / "digikey_bulk.csv"
     rows = transform_to_digikey(SAMPLE_BOM)
-    with out.open("w", newline="") as f:
+    with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
-    parsed = list(csv.DictReader(out.open()))
+    parsed = list(csv.DictReader(out.open(encoding="utf-8")))
     assert len(parsed) == 2
     assert parsed[0]["Manufacturer Part Number"] == "AMC1311BDWVR"

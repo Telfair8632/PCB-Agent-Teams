@@ -15,6 +15,15 @@ Usage:
 Requires: PCB analysis JSON generated with --full flag (for trace segments).
 """
 
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import argparse
 import json
 import math
@@ -278,7 +287,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        with open(args.input) as f:
+        with open(args.input, encoding="utf-8") as f:
             pcb_json = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"Error reading {args.input}: {e}", file=sys.stderr)
@@ -309,7 +318,7 @@ def main():
 
     output = json.dumps(result, indent=2)
     if args.output:
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(output)
     else:
         print(output)

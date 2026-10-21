@@ -16,6 +16,15 @@ Usage: python3 roster_steps.py <project_root>
        <project_root> = dir containing kicad/ and analysis/ (a Projects/<name>/)
 Exit:  0 = roster printed; 2 = project_root unreadable.
 """
+
+# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 import json
 import shutil
 import socket
