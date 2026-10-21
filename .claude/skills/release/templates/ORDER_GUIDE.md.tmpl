@@ -45,7 +45,7 @@
 3. 启用 "PCB Assembly"
 4. 上传生产 BOM：`pcb_fab/assembly/{{ project }}_assembly_bom.csv`
 5. 上传 CPL：`pcb_fab/{{ project }}_positions.csv`
-6. 工艺参数：板厚 {{ board.thickness_mm }} mm / 铜厚 {{ board.copper_oz }} oz / 阻焊绿 / 丝印白（详见 `fab_options.md`）
+6. 工艺参数：板厚 {{ board.thickness_mm }} mm / 铜厚 {{ board.copper_oz | default("1", true) }} oz / 阻焊绿 / 丝印白（详见 `fab_options.md`）
 
 ### Path B：PCBWay turnkey（PCB + 全球采购装配）
 **适合**：元件分散在 DigiKey/Mouser，LCSC 覆盖不全
