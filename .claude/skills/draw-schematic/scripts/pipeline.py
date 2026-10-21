@@ -37,6 +37,7 @@
 """
 import argparse
 import ast
+import glob
 import importlib.util
 import json
 import os
@@ -52,8 +53,9 @@ from typing import Dict, Optional
 # Workspace root = .../PCB-Agent-Teams/.claude/skills/draw-schematic/scripts/pipeline.py → parents[4].
 # Override with KICAD_ROOT env var if the layout ever moves.
 KICAD_ROOT = Path(os.environ.get("KICAD_ROOT") or Path(__file__).resolve().parents[4])
-VENV_PYTHON = KICAD_ROOT / ".venv/bin/python"
-KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
+_venv_bin = "Scripts" if os.name == "nt" else "bin"
+_venv_exe = "python.exe" if os.name == "nt" else "python"
+VENV_PYTHON = KICAD_ROOT / ".venv" / _venv_bin / _venv_exe
 KICAD_SKILLS_ROOT = KICAD_ROOT / ".claude" / "skills"
 # Paths updated 2026-05 after skill consolidation:
 #   kicad/scripts/analyze_schematic.py → check-schematic/scripts/
@@ -65,10 +67,18 @@ SPICE_SIMULATE = KICAD_SKILLS_ROOT / "check-schematic" / "scripts" / "simulate_s
 def _build_symbol_env() -> dict:
     """Build env dict with KICAD_SYMBOL_DIR including lib_external/."""
     env = os.environ.copy()
-    kicad_sym_dir = "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols"
+    kicad_sym_dirs = [
+        "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
+        "/usr/share/kicad/symbols",
+        "/usr/local/share/kicad/symbols",
+    ]
+    for pat in (r"C:\Program Files\KiCad\*\share\kicad\symbols",
+                r"F:\KiCad\*\share\kicad\symbols",
+                r"F:\KiCad\share\kicad\symbols"):
+        kicad_sym_dirs.extend(glob.glob(pat))
     lib_external = str(KICAD_ROOT / "lib_external")
     existing = env.get("KICAD_SYMBOL_DIR", "")
-    paths = [p for p in existing.split(os.pathsep) if p] + [kicad_sym_dir, lib_external]
+    paths = [p for p in existing.split(os.pathsep) if p] + kicad_sym_dirs + [lib_external]
     env["KICAD_SYMBOL_DIR"] = os.pathsep.join(paths)
     return env
 
@@ -86,6 +96,7 @@ def find_kicad_cli() -> str:
         "/snap/kicad/current/bin/kicad-cli",                        # Linux snap
         r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe",           # Windows
         r"C:\Program Files\KiCad\9.0\bin\kicad-cli.exe",            # Windows 9
+        r"F:\KiCad\bin\kicad-cli.exe",                              # Windows custom drive
     ]
     for c in candidates:
         if Path(c).exists():

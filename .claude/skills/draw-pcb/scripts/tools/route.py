@@ -158,10 +158,15 @@ def main() -> int:
         return 1
     rust_so = KRT_DIR / "rust_router" / "grid_router.so"
     if not rust_so.exists():
-        print(json.dumps({"ok": False, "error":
-                          "grid_router.so missing — run "
-                          "vendor/KiCadRoutingTools/build_router.py first"}))
-        return 1
+        # Windows builds produce grid_router.pyd (same module, different ext)
+        rust_pyd = KRT_DIR / "rust_router" / "grid_router.pyd"
+        if rust_pyd.exists():
+            rust_so = rust_pyd
+        else:
+            print(json.dumps({"ok": False, "error":
+                              "grid_router.so missing — run "
+                              "vendor/KiCadRoutingTools/build_router.py first"}))
+            return 1
     if args.power_nets_widths and not args.power_nets:
         print(json.dumps({"ok": False, "error":
                           "--power-nets-widths needs --power-nets"}))

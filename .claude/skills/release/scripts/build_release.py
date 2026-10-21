@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,7 +28,9 @@ else:
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 KICAD_EXPORT_GERBERS = WORKSPACE_ROOT / ".claude/skills/release/scripts/export_gerbers.py"
-VENV_PYTHON = WORKSPACE_ROOT / ".venv/bin/python"
+VENV_PYTHON = WORKSPACE_ROOT / (
+    ".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python"
+)
 
 # JST = UTC+9. Use a fixed offset rather than zoneinfo to avoid platform tz-data issues.
 from datetime import timedelta
@@ -117,19 +120,47 @@ def _check_gate(project_dir: Path) -> tuple[bool, str, dict]:
 
 def _board_summary(pcb_path: Path) -> dict:
     fallback = {
-        "thickness_mm": "?", "layers": "?", "size_mm": "?",
+        "thickness_mm": "?", "layers": "?", "size_mm": "?", "copper_oz": "?",
         "n_components": "?", "n_smt": "?", "n_tht": "?",
     }
+    summary = dict(fallback)
+    # per-project order options (thickness / copper weight are order-time
+    # choices, not board-file data) — kicad/board_options.json wins
+    import json as _json
+    opts_path = pcb_path.parent / "board_options.json"
+    if opts_path.exists():
+        try:
+            opts = _json.loads(opts_path.read_text(encoding="utf-8"))
+            for k in ("thickness_mm", "layers", "copper_oz"):
+                if opts.get(k) is not None:
+                    summary[k] = str(opts[k])
+        except Exception:
+            pass
     try:
         text = pcb_path.read_text(errors="replace")
     except OSError:
-        return fallback
-    n_footprints = text.count("(footprint ")
-    summary = dict(fallback)
-    if n_footprints:
-        summary["n_components"] = str(n_footprints)
-        summary["n_smt"] = str(n_footprints)
-        summary["n_tht"] = "0"
+        return summary
+    n_tht = text.count("(attr through_hole")
+    n_smd = text.count("(attr smd")
+    if n_tht or n_smd:
+        summary["n_tht"] = str(n_tht)
+        summary["n_smt"] = str(n_smd)
+        summary["n_components"] = str(n_tht + n_smd)
+    else:
+        n_footprints = text.count("(footprint ")
+        if n_footprints:
+            summary["n_components"] = str(n_footprints)
+    # board size from Edge.Cuts line/rect segments
+    import re as _re
+    segs = _re.findall(
+        r'\(gr_(?:line|rect|arc)\s+\(start\s+(-?[\d.]+)\s+(-?[\d.]+)\)\s+\(end\s+(-?[\d.]+)\s+(-?[\d.]+)\)\s+\(layer\s+"Edge\.Cuts"',
+        text)
+    pts = []
+    for a, b, c, d in segs:
+        pts += [(float(a), float(b)), (float(c), float(d))]
+    if pts:
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+        summary["size_mm"] = f"{max(xs)-min(xs):.1f} x {max(ys)-min(ys):.1f}"
     return summary
 
 

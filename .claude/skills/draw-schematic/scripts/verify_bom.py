@@ -97,7 +97,9 @@ def find_in_components_lib(mpn: str) -> tuple[str, int] | None:
             # Try both suffixes on this symbol, then if zero, follow `extends` to a parent.
             def _count_for(target_name: str) -> int:
                 for suffix in ("_0_1", "_0_0", "_1_1"):
-                    sub_pattern = rf'\(symbol\s+"{re.escape(target_name)}{suffix}"(.+?)(?=\(symbol\s+"[A-Z]|\Z)'
+                    # stop at ANY next symbol declaration — names may start with
+                    # a digit (2N3904BU), not only [A-Z]
+                    sub_pattern = rf'\(symbol\s+"{re.escape(target_name)}{suffix}"(.+?)(?=\(symbol\s+"|\Z)'
                     sm = re.search(sub_pattern, text, re.DOTALL)
                     if sm:
                         n = sm.group(1).count("(pin ")
@@ -108,7 +110,7 @@ def find_in_components_lib(mpn: str) -> tuple[str, int] | None:
             pin_count = _count_for(name)
             if pin_count == 0:
                 # Look up the symbol's own block to detect (extends "PARENT")
-                own_pattern = rf'\(symbol\s+"{re.escape(name)}"(.+?)(?=\(symbol\s+"[A-Z]|\Z)'
+                own_pattern = rf'\(symbol\s+"{re.escape(name)}"(.+?)(?=\(symbol\s+"|\Z)'
                 own_match = re.search(own_pattern, text, re.DOTALL)
                 if own_match:
                     ext_match = re.search(r'\(extends\s+"([^"]+)"', own_match.group(1))

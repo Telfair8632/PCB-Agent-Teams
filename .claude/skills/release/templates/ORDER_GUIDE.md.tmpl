@@ -12,7 +12,7 @@
 | 元件数 | {{ board.n_components }}（其中 SMT {{ board.n_smt }}，THT {{ board.n_tht }}） |
 | 唯一 MPN 数 | {{ coverage.n_unique_mpn }} |
 | Gerber 文件 ✓ | pcb_fab/{{ project }}_fab.zip |
-| 生产 BOM ✓ | pcb_fab/assembly_bom.csv |
+| 生产 BOM ✓ | pcb_fab/assembly/{{ project }}_assembly_bom.csv |
 | 采购 BOM ✓ | procurement/bom_{{ project }}.csv |
 | check-pcb gate | {{ gate.status }} @ {{ gate.timestamp }} |
 
@@ -43,9 +43,9 @@
 1. 浏览器打开 https://cart.jlcpcb.com/quote
 2. 上传 `pcb_fab/{{ project }}_fab.zip`
 3. 启用 "PCB Assembly"
-4. 上传生产 BOM：`pcb_fab/assembly_bom.csv`
+4. 上传生产 BOM：`pcb_fab/assembly/{{ project }}_assembly_bom.csv`
 5. 上传 CPL：`pcb_fab/{{ project }}_positions.csv`
-6. 工艺参数：板厚 {{ board.thickness_mm }} mm / 铜厚 1 oz / 阻焊绿 / 丝印白（详见 `fab_options.md`）
+6. 工艺参数：板厚 {{ board.thickness_mm }} mm / 铜厚 {{ board.copper_oz }} oz / 阻焊绿 / 丝印白（详见 `fab_options.md`）
 
 ### Path B：PCBWay turnkey（PCB + 全球采购装配）
 **适合**：元件分散在 DigiKey/Mouser，LCSC 覆盖不全

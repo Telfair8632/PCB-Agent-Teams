@@ -170,14 +170,21 @@ def _check_nix() -> str | None:
 
 
 def _check_windows_program_files() -> str | None:
-    """Check Windows Program Files for KiCad installer."""
+    """Check Windows install roots (Program Files + custom drives)."""
+    roots = []
     for pf_var in ['ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432']:
         pf = os.environ.get(pf_var)
-        if not pf:
-            continue
-        candidates = glob.glob(
-            os.path.join(pf, 'KiCad', '*', 'bin', 'kicad-cli.exe'))
-        for c in sorted(candidates, reverse=True):
+        if pf:
+            roots.append(pf)
+    # custom install location (e.g. install on another drive)
+    roots.append(r'F:\KiCad')
+    for pf in roots:
+        candidates = (
+            glob.glob(os.path.join(pf, 'KiCad', '*', 'bin', 'kicad-cli.exe'))
+            + glob.glob(os.path.join(pf, '*', 'bin', 'kicad-cli.exe'))
+            + glob.glob(os.path.join(pf, 'bin', 'kicad-cli.exe'))
+        )
+        for c in sorted(set(candidates), reverse=True):
             if os.path.isfile(c):
                 return c
     return None

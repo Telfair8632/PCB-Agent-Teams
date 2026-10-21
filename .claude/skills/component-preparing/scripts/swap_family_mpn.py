@@ -50,7 +50,9 @@ from pathlib import Path
 from typing import Iterable
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
-VENV_PYTHON = WORKSPACE_ROOT / ".venv/bin/python"
+VENV_PYTHON = WORKSPACE_ROOT / (
+    ".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python"
+)
 SKILL_DIR = WORKSPACE_ROOT / ".claude/skills/component-preparing/scripts"
 
 # Walker prunes these (truly opaque). `release/` is intentionally NOT here:

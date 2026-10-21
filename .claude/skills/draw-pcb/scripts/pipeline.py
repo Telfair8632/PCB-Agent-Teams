@@ -22,7 +22,10 @@ finishes, pick one: run Phase E, route by hand in the KiCad GUI, or skip
 routing and go straight to review.
 """
 import argparse
+import glob
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,6 +42,14 @@ while KICAD_ROOT.parent != KICAD_ROOT:
         break
     KICAD_ROOT = KICAD_ROOT.parent
 
+def _ver_sorted(pattern: str):
+    """Glob with numeric version sort (10.0 ranks above 9.0)."""
+    return sorted(
+        glob.glob(pattern),
+        key=lambda s: [int(t) for t in re.findall(r"\d+", s)],
+    )
+
+
 KICAD_CLI = ""
 for p in [
     "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
@@ -51,18 +62,30 @@ for p in [
         break
 if not KICAD_CLI:
     KICAD_CLI = shutil.which("kicad-cli") or ""
-
-KICAD_PYTHON = ""
-for p in [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
-    "/usr/lib/kicad/python3",
-]:
-    if Path(p).exists():
-        KICAD_PYTHON = p
+if not KICAD_CLI:
+    # Windows: KiCad install dirs, newest version first
+    _win_cli = _ver_sorted(r"C:\Program Files\KiCad\*\bin\kicad-cli.exe") + _ver_sorted(r"F:\KiCad\*\bin\kicad-cli.exe") + [r"F:\KiCad\bin\kicad-cli.exe"]
+    for p in _win_cli:
+        KICAD_CLI = p
         break
 
-VENV_PYTHON = str(KICAD_ROOT / ".venv" / "bin" / "python") if KICAD_ROOT else ""
+KICAD_PYTHON = os.environ.get("KICAD_PYTHON", "")
+if not (KICAD_PYTHON and Path(KICAD_PYTHON).exists()):
+    KICAD_PYTHON = ""
+    for p in [
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
+        "/usr/lib/kicad/python3",
+    ] + _ver_sorted(r"C:\Program Files\KiCad\*\bin\python.exe") + _ver_sorted(r"F:\KiCad\*\bin\python.exe") + [r"F:\KiCad\bin\python.exe"]:
+        if Path(p).exists():
+            KICAD_PYTHON = p
+            break
+
+if KICAD_ROOT:
+    _venv_sub = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    VENV_PYTHON = str(KICAD_ROOT / ".venv" / _venv_sub)
+else:
+    VENV_PYTHON = ""
 
 # Paths updated 2026-05 after skill consolidation:
 #   emc/kicad analyzers → check-schematic / check-pcb

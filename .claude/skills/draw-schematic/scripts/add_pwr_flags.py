@@ -43,6 +43,7 @@ _KICAD_POWER_LIB_CANDIDATES = [
     "/usr/share/kicad/symbols/power.kicad_sym",
     "/usr/local/share/kicad/symbols/power.kicad_sym",
     r"C:\Program Files\KiCad\10.0\share\kicad\symbols\power.kicad_sym",
+    r"F:\KiCad\share\kicad\symbols\power.kicad_sym",
 ]
 
 

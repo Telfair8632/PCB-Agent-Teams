@@ -4,7 +4,9 @@ Board mutation needs the `pcbnew` module, which only exists inside KiCad's
 bundled Python (not the workspace .venv). This module locates that interpreter
 and invokes _kicad_python_helper.py as a subprocess.
 """
+import glob
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -21,9 +23,19 @@ _KICAD_PYTHON_CANDIDATES = [
 
 
 def find_kicad_python() -> str | None:
+    env_py = os.environ.get("KICAD_PYTHON")
+    if env_py and Path(env_py).exists():
+        return env_py
     for p in _KICAD_PYTHON_CANDIDATES:
         if Path(p).exists():
             return p
+    # Windows install roots (versioned sub-dirs + flat layout on custom drives)
+    for pat in (r"C:\Program Files\KiCad\*\bin\python.exe",
+                r"F:\KiCad\*\bin\python.exe",
+                r"F:\KiCad\bin\python.exe"):
+        hits = sorted(glob.glob(pat))
+        if hits:
+            return hits[-1]
     return None
 
 

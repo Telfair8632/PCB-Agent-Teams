@@ -25,6 +25,7 @@ import argparse
 import ast
 import json
 import re
+import shutil
 import subprocess
 import sys
 from collections import defaultdict
@@ -32,6 +33,17 @@ from pathlib import Path
 
 
 KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
+if not Path(KICAD_CLI).exists():
+    KICAD_CLI = shutil.which("kicad-cli") or ""
+if not KICAD_CLI:
+    import glob as _glob
+    for _pat in (r"C:\Program Files\KiCad\*\bin\kicad-cli.exe",
+                 r"F:\KiCad\*\bin\kicad-cli.exe",
+                 r"F:\KiCad\bin\kicad-cli.exe"):
+        _hits = sorted(_glob.glob(_pat))
+        if _hits:
+            KICAD_CLI = _hits[-1]
+            break
 
 
 # ============================================================

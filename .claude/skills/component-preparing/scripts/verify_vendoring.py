@@ -118,8 +118,25 @@ def _verify_in_lib_external(workspace: Path, kicad_symbol: str) -> bool:
     return needle in path.read_text(encoding="utf-8", errors="ignore")
 
 
+def _installed_kicad_symbol_roots() -> list[Path]:
+    """KiCad install dirs (version-globbed on Windows custom drives too)."""
+    import glob as _glob
+    import os as _os
+    roots = [
+        Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols"),
+        Path("/usr/share/kicad/symbols"),
+    ]
+    for pat in (
+        r"C:\Program Files\KiCad\*\share\kicad\symbols",
+        r"F:\KiCad\*\share\kicad\symbols",
+        r"F:\KiCad\share\kicad\symbols",
+    ):
+        roots.extend(Path(p) for p in _glob.glob(pat))
+    return [r for r in roots if r.is_dir()]
+
+
 def _verify_in_kicad_std(workspace: Path, kicad_symbol: str) -> bool:
-    """Return True if symbol exists in KiCad std lib_cache."""
+    """Return True if symbol exists in KiCad std lib_cache or installed KiCad."""
     if not kicad_symbol or ":" not in kicad_symbol:
         return False
     lib, name = kicad_symbol.split(":", 1)
@@ -129,6 +146,12 @@ def _verify_in_kicad_std(workspace: Path, kicad_symbol: str) -> bool:
     sym_dir = workspace / "lib_cache" / "sources" / "kicad-symbols" / f"{lib}.kicad_symdir"
     if sym_dir.is_dir():
         return (sym_dir / f"{name}.kicad_sym").exists()
+    # installed KiCad (Windows / Linux / macOS custom locations)
+    for root in _installed_kicad_symbol_roots():
+        lib_file = root / f"{lib}.kicad_sym"
+        if lib_file.exists():
+            if f'(symbol "{name}"' in lib_file.read_text(encoding="utf-8", errors="ignore"):
+                return True
     return False
 
 
@@ -172,6 +195,13 @@ def _resolve_footprint_file(workspace: Path, kicad_footprint: str) -> Path | Non
         Path("/usr/share/kicad/footprints"),
         Path("/usr/local/share/kicad/footprints"),
     ]
+    import glob as _glob
+    for pat in (
+        r"C:\Program Files\KiCad\*\share\kicad\footprints",
+        r"F:\KiCad\*\share\kicad\footprints",
+        r"F:\KiCad\share\kicad\footprints",
+    ):
+        kicad_fp_roots.extend(Path(p) for p in _glob.glob(pat))
     for root in kicad_fp_roots:
         candidates.append(root / f"{lib}.pretty" / f"{name}.kicad_mod")
     for c in candidates:

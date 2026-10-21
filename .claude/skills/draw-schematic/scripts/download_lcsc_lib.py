@@ -24,12 +24,17 @@ from urllib.request import Request, urlopen
 # Override with KICAD_ROOT env var if the layout ever moves.
 KICAD_ROOT = Path(os.environ.get("KICAD_ROOT") or Path(__file__).resolve().parents[4])
 LIB_EXTERNAL = KICAD_ROOT / "lib_external"
-EASYEDA2KICAD = KICAD_ROOT / ".venv/bin/easyeda2kicad"
+_venv_bin = "Scripts" if os.name == "nt" else "bin"
+_venv_ext = ".exe" if os.name == "nt" else ""
+EASYEDA2KICAD = KICAD_ROOT / ".venv" / _venv_bin / ("easyeda2kicad" + _venv_ext)
 WRITE_GUARD_ENV = "COMPONENT_SELECTING_LCSC_WRITE"
 
 
 def query_lcsc_id(mpn: str) -> str | None:
     """用 Jina Reader 代理读 LCSC 搜索页，提取真实 LCSC C 编号。"""
+    # Input already IS an LCSC C-code — skip network resolution entirely.
+    if re.fullmatch(r"[Cc]\d{4,10}", mpn or ""):
+        return mpn.upper()
     url = f"https://r.jina.ai/https://www.lcsc.com/search?q={mpn}"
     try:
         req = Request(url, headers={"User-Agent": "Mozilla/5.0"})

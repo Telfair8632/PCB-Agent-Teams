@@ -874,15 +874,17 @@ def query_lcsc_api_for_vendor(
     }
     target = norm(mpn)
     chosen: dict[str, Any] | None = None
+    data: dict[str, Any] = {}
+    fetch_error: dict[str, Any] | None = None
     try:
         url = JLCSEARCH_URL_TMPL.format(q=urllib.parse.quote(mpn))
         req = urllib.request.Request(url, headers={"User-Agent": DEFAULT_USER_AGENT})
         with _v2_dk_urlopen(req, timeout=API_HTTP_TIMEOUT) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
-        return {**base, "status": "fetch_error", "reason": f"lcsc_jlcsearch_http_{exc.code}"}
+        fetch_error = {**base, "status": "fetch_error", "reason": f"lcsc_jlcsearch_http_{exc.code}"}
     except Exception as exc:
-        return {
+        fetch_error = {
             **base,
             "status": "fetch_error",
             "reason": f"lcsc_jlcsearch_error_{type(exc).__name__}",
@@ -896,7 +898,30 @@ def query_lcsc_api_for_vendor(
             chosen = c
             break
 
+    if chosen is None and re.fullmatch(r"[Cc]\d{4,10}", mpn or ""):
+        # C-code fallback: jlcsearch mirrors match on the mfr field, so a
+        # C-code query can never hit there (and the mirror is sometimes down).
+        # The official LCSC CDN resolves productCode directly.
+        try:
+            req_c = urllib.request.Request(
+                LCSC_WMSC_URL_TMPL.format(c=urllib.parse.quote(mpn)),
+                headers={"User-Agent": DEFAULT_USER_AGENT},
+            )
+            with _v2_dk_urlopen(req_c, timeout=API_HTTP_TIMEOUT) as resp:
+                raw = json.loads(resp.read())
+            wmsc_hit = raw.get("result") if isinstance(raw, dict) else None
+            if isinstance(wmsc_hit, dict) and wmsc_hit.get("productCode"):
+                chosen = {
+                    "mfr": wmsc_hit.get("productModel") or mpn,
+                    "stock": wmsc_hit.get("stockNumber"),
+                    "lcsc": wmsc_hit.get("productCode"),
+                }
+        except Exception:
+            pass  # best-effort; falls through to no_match/fetch_error below
+
     if chosen is None:
+        if fetch_error is not None:
+            return fetch_error
         return {
             **base,
             "status": "no_match",

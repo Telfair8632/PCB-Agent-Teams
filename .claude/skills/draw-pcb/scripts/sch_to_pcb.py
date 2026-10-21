@@ -15,8 +15,10 @@ Usage:
     python sch_to_pcb.py <sch_file> --output <pcb_file>
 """
 import argparse
+import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +27,14 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # ── KiCad CLI + bundled Python detection ─────────────────────
+
+def _ver_sorted(pattern: str):
+    """Glob with numeric version sort (10.0 ranks above 9.0)."""
+    return sorted(
+        glob.glob(pattern),
+        key=lambda s: [int(t) for t in re.findall(r"\d+", s)],
+    )
+
 
 KICAD_CLI = ""
 for p in [
@@ -38,19 +48,32 @@ for p in [
         break
 if not KICAD_CLI:
     KICAD_CLI = shutil.which("kicad-cli") or ""
-
-KICAD_PYTHON = ""
-for p in [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.10/bin/python3.10",
-    "/usr/lib/kicad/python3",  # Linux
-]:
-    if Path(p).exists():
-        KICAD_PYTHON = p
+if not KICAD_CLI:
+    # Windows: KiCad install dirs, newest version first
+    _win_cli = _ver_sorted(r"C:\Program Files\KiCad\*\bin\kicad-cli.exe") + _ver_sorted(r"F:\KiCad\*\bin\kicad-cli.exe") + [r"F:\KiCad\bin\kicad-cli.exe"]
+    for p in _win_cli:
+        KICAD_CLI = p
         break
 
+KICAD_PYTHON = os.environ.get("KICAD_PYTHON", "")
+if not (KICAD_PYTHON and Path(KICAD_PYTHON).exists()):
+    KICAD_PYTHON = ""
+    for p in [
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.10/bin/python3.10",
+        "/usr/lib/kicad/python3",  # Linux
+    ] + _ver_sorted(r"C:\Program Files\KiCad\*\bin\python.exe") + _ver_sorted(r"F:\KiCad\*\bin\python.exe") + [r"F:\KiCad\bin\python.exe"]:
+        if Path(p).exists():
+            KICAD_PYTHON = p
+            break
+
 KICAD_FP_DIR = Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints")
+if not KICAD_FP_DIR.is_dir():
+    for _d in _ver_sorted(r"C:\Program Files\KiCad\*\share\kicad\footprints") + _ver_sorted(r"F:\KiCad\*\share\kicad\footprints") + [r"F:\KiCad\share\kicad\footprints"]:
+        if Path(_d).is_dir():
+            KICAD_FP_DIR = Path(_d)
+            break
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 HELPER_SCRIPT = SCRIPT_DIR / "_kicad_python_helper.py"

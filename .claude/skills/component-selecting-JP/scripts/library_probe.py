@@ -231,7 +231,17 @@ def _build_index() -> dict:
         bucket_fp = footprints_by_source.setdefault(label, [])
         for path in walk_files(root, (".kicad_mod",)):
             stem = path.stem
-            bucket_fp.append([norm(stem), stem.lower(), str(path)])
+            # LCSC Part property is the authoritative part identity inside the
+            # footprint (vendored files are named by family, not by C-code).
+            lcsc_codes = ""
+            try:
+                _mod_text = path.read_text(encoding="utf-8", errors="ignore")
+                _codes = re.findall(
+                    r'property\s+"LCSC Part"\s+"([Cc]\d+)"', _mod_text)
+                lcsc_codes = " ".join(c.lower() for c in _codes)
+            except OSError:
+                pass
+            bucket_fp.append([norm(stem), stem.lower(), str(path), lcsc_codes])
         if str(root.resolve()) not in root_mtimes:
             root_mtimes[str(root.resolve())] = _root_max_mtime(root)
 
@@ -378,13 +388,24 @@ def footprint_name_hits(mpn: str, root: Path, source: str) -> list[Hit]:
         bucket = (idx.get("footprints_by_source") or {}).get(idx_label) or []
         for entry in bucket:
             stem_norm, _stem_lower, abs_path = entry[0], entry[1], entry[2]
-            if normalized in stem_norm:
+            lcsc_codes = entry[3] if len(entry) > 3 else ""
+            if normalized in stem_norm or (lcsc_codes and normalized in lcsc_codes):
                 p = Path(abs_path)
                 hits.append(Hit(source, "footprint", rel(p), p.stem, "exact"))
         return hits
     for path in walk_files(root, (".kicad_mod",)):
         stem_norm = norm(path.stem)
-        if normalized in stem_norm:
+        matched = normalized in stem_norm
+        if not matched and re.fullmatch(r"[Cc]\d{4,10}", mpn or ""):
+            # C-code identity lives in the file's LCSC Part property, not the stem.
+            try:
+                _mod_text = path.read_text(encoding="utf-8", errors="ignore")
+                matched = re.search(
+                    r'property\s+"LCSC Part"\s+"' + re.escape(mpn) + r'"',
+                    _mod_text) is not None
+            except OSError:
+                pass
+        if matched:
             hits.append(Hit(source, "footprint", rel(path), path.stem, "exact"))
     return hits
 

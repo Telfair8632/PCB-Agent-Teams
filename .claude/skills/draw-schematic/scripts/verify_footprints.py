@@ -41,6 +41,7 @@ _KICAD_FP_DIRS = [
     "/usr/local/share/kicad/footprints",                                 # Linux compile
     "/snap/kicad/current/share/kicad/footprints",                        # Linux snap
     r"C:\Program Files\KiCad\10.0\share\kicad\footprints",               # Windows
+    r"F:\KiCad\share\kicad\footprints",                                  # Windows custom drive
 ]
 
 _LIB_EXTERNAL = Path(__file__).resolve().parents[4] / "lib_external"

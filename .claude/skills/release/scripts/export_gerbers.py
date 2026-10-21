@@ -28,6 +28,7 @@ KICAD_CLI_CANDIDATES = [
     "/usr/local/bin/kicad-cli",
     "/snap/kicad/current/bin/kicad-cli",
     "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe",
+    "F:/KiCad/bin/kicad-cli.exe",
 ]
 
 DEFAULT_NON_COPPER_LAYERS = [
@@ -216,6 +217,31 @@ def export_fab(args: argparse.Namespace) -> dict:
     results["positions"] = run(pos_cmd)
     require_ok(results["positions"])
 
+    # JLCPCB CPL variant — fab portals expect Mid X/Mid Y/Rotation/Layer columns
+    # and reject kicad-cli's Ref/Val/Package/PosX/PosY header.
+    try:
+        import csv as _csv
+        jlc_path = assembly_dir / f"{pcb_path.stem}_jlc_cpl.csv"
+        with open(pos_path, newline="", encoding="utf-8") as f:
+            rows = list(_csv.reader(f))
+        hdr = rows[0]
+        col = {name: hdr.index(name) for name in
+               ("Ref", "Val", "Package", "PosX", "PosY", "Rot", "Side")}
+        with open(jlc_path, "w", newline="", encoding="utf-8") as f:
+            w = _csv.writer(f)
+            w.writerow(["Designator", "Val", "Package",
+                        "Mid X", "Mid Y", "Rotation", "Layer"])
+            for r in rows[1:]:
+                if not r or not r[col["Ref"]].strip():
+                    continue
+                side = r[col["Side"]].strip().lower()
+                layer = "top" if side in ("top", "front", "f") else "bottom"
+                w.writerow([r[col["Ref"]], r[col["Val"]], r[col["Package"]],
+                            r[col["PosX"]], r[col["PosY"]], r[col["Rot"]], layer])
+        results["positions_jlc"] = {"ok": True, "file": str(jlc_path)}
+    except Exception as exc:  # best-effort addon, never block the release
+        results["positions_jlc"] = {"ok": False, "error": str(exc)}
+
     bom_path = None
     if schematic and not args.no_bom:
         bom_path = assembly_dir / f"{pcb_path.stem}_assembly_bom.csv"
@@ -237,6 +263,63 @@ def export_fab(args: argparse.Namespace) -> dict:
         ]
         results["bom"] = run(bom_cmd)
         require_ok(results["bom"])
+
+        # Sync PCB-side DNP into the assembly BOM: netlist-driven schematics
+        # carry no dnp flags, so --exclude-dnp above is a no-op. Drop refs the
+        # PCB marks DNP so BOM rows stay aligned with the CPL.
+        try:
+            import csv as _csv
+            import re as _re
+            pcb_text = pcb_path.read_text(errors="replace")
+            dnp_refs = set()
+            # anchor on each dnp attr, then backtrack to its own footprint's
+            # Reference property (non-greedy block regex would span neighbors)
+            for am in _re.finditer(r'\(attr\b[^)]*\bdnp\b[^)]*\)', pcb_text):
+                back = pcb_text.rfind('(footprint ', 0, am.start())
+                if back < 0:
+                    continue
+                rm = _re.search(
+                    r'\(property\s+"Reference"\s+"([^"]+)"',
+                    pcb_text[back:am.start()])
+                if rm:
+                    dnp_refs.add(rm.group(1))
+            if dnp_refs:
+                def _expand(cell):
+                    refs = []
+                    for tok in (x.strip() for x in cell.split(",")):
+                        if not tok:
+                            continue
+                        rm = _re.fullmatch(r'([A-Za-z]+)(\d+)-([A-Za-z]+)?(\d+)', tok)
+                        if rm and (rm.group(3) or rm.group(1)) == rm.group(1):
+                            p = rm.group(1)
+                            refs += [f"{p}{n}" for n in range(int(rm.group(2)), int(rm.group(4)) + 1)]
+                        else:
+                            refs.append(tok)
+                    return refs
+                with open(bom_path, newline="", encoding="utf-8") as f:
+                    rows = list(_csv.reader(f))
+                hdr = rows[0]
+                i_refs, i_qty = hdr.index("Refs"), hdr.index("Qty")
+                out = [hdr]
+                dropped = []
+                for r in rows[1:]:
+                    refs = _expand(r[i_refs])
+                    hit = [x for x in refs if x in dnp_refs]
+                    if not hit:
+                        out.append(r)  # untouched — keep kicad's range notation+qty
+                        continue
+                    dropped += hit
+                    keep = [x for x in refs if x not in dnp_refs]
+                    if not keep:
+                        continue
+                    r[i_refs] = ",".join(keep)
+                    r[i_qty] = str(len(keep))
+                    out.append(r)
+                with open(bom_path, "w", newline="", encoding="utf-8") as f:
+                    _csv.writer(f).writerows(out)
+                results["bom_dnp_synced"] = {"ok": True, "dropped": dropped}
+        except Exception as exc:  # best-effort; never block the release
+            results["bom_dnp_synced"] = {"ok": False, "error": str(exc)}
     else:
         results["bom"] = None
 

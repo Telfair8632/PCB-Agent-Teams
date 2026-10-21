@@ -24,6 +24,7 @@
     1  有 fail → 修了再来
 """
 import argparse
+import glob
 import json
 import re
 import subprocess
@@ -117,7 +118,8 @@ def _component_selecting_evidence_is_buyable(ev: Dict) -> tuple[bool, str]:
 
 # 通用占位元件 — stock 检查跳过（5 元一袋的）
 GENERIC_PLACEHOLDERS = {
-    "Device:R", "Device:C", "Device:L", "Device:D", "Device:LED",
+    "Device:R", "Device:C", "Device:CP", "Device:C_Polarized", "Device:L",
+    "Device:D", "Device:LED",
     "Device:Q_NPN", "Device:Q_PNP", "Device:Q_NMOS", "Device:Q_PMOS",
     "power:GND", "power:VCC", "power:VDD", "power:+5V", "power:+3V3",
     "Connector_Generic:Conn_01x02", "Connector_Generic:Conn_01x03",
@@ -150,6 +152,9 @@ def _looks_like_real_mpn(value: Optional[str]) -> bool:
         return False
     if value.isdigit() and len(value) >= 6:
         return True  # 厂家 order code
+    # 数字+单位字母结尾的阻值/容值写法（220R / 0R / 4k7 之外的单字母后缀）
+    if re.fullmatch(r"\d+[RrKkMm]", value):
+        return False
     has_digit = any(c.isdigit() for c in value)
     has_upper = any(c.isupper() for c in value)
     return has_digit and has_upper
@@ -555,6 +560,12 @@ _KICAD_SYM_DIRS = [
     Path("/usr/share/kicad/symbols"),
     Path("/usr/local/share/kicad/symbols"),
 ]
+# Windows install roots (standard Program Files + custom drive layouts)
+for _pat in (r"C:\Program Files\KiCad\*\share\kicad\symbols",
+             r"F:\KiCad\*\share\kicad\symbols",
+             r"F:\KiCad\share\kicad\symbols"):
+    for _p in glob.glob(_pat):
+        _KICAD_SYM_DIRS.append(Path(_p))
 _LIB_EXTERNAL_DIR = Path(__file__).resolve().parents[4] / "lib_external"
 
 # 顶层 symbol 声明：行首任意空白（tab 或空格），然后 (symbol "Name"

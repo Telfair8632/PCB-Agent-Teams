@@ -30,11 +30,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def _find_kicad_cli() -> str | None:
+    import glob as _glob
+    import os as _os
     import shutil
+    env_cli = _os.environ.get("KICAD_CLI")
+    if env_cli and Path(env_cli).exists():
+        return env_cli
     for p in _KICAD_CLI_CANDIDATES:
         if Path(p).exists():
             return p
-    return shutil.which("kicad-cli")
+    cli = shutil.which("kicad-cli")
+    if cli:
+        return cli
+    for pat in (r"C:\Program Files\KiCad\*\bin\kicad-cli.exe",
+                r"F:\KiCad\*\bin\kicad-cli.exe",
+                r"F:\KiCad\bin\kicad-cli.exe"):
+        hits = sorted(_glob.glob(pat))
+        if hits:
+            return hits[-1]
+    return None
 
 
 def run_drc(pcb_path: str) -> dict:
