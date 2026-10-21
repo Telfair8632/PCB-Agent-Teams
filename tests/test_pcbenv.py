@@ -29,7 +29,7 @@ import pcbenv
 
 def test_root_is_repo_root():
     assert pcbenv.ROOT == REPO_ROOT
-    assert (pcbenv.ROOT / "CLAUDE.md").is_file()
+    assert (pcbenv.ROOT / "AGENTS.md").is_file()
     assert (pcbenv.ROOT / ".venv").is_dir()
 
 
@@ -170,6 +170,28 @@ def test_find_project_claude_md_fallback_rglob(tmp_path):
     assert found == inner / "CLAUDE.md"
 
 
+def test_find_project_spec_prefers_agents_md(tmp_path):
+    ws = tmp_path / "ws4"
+    ws.mkdir()
+    proj = ws / "Projects" / "dual"
+    proj.mkdir(parents=True)
+    (proj / "CLAUDE.md").write_text("# legacy spec\n", encoding="utf-8")
+    (proj / "AGENTS.md").write_text("# canonical spec\n", encoding="utf-8")
+    found = pcbenv.find_project_spec(proj, ws)
+    assert found == proj / "AGENTS.md"
+
+
+def test_find_project_spec_accepts_agents_only(tmp_path):
+    ws = tmp_path / "ws5"
+    ws.mkdir()
+    proj = ws / "Projects" / "agents_only"
+    deep = proj / "sub"
+    deep.mkdir(parents=True)
+    (proj / "AGENTS.md").write_text("# canonical spec\n", encoding="utf-8")
+    found = pcbenv.find_project_spec(deep, ws)
+    assert found == proj / "AGENTS.md"
+
+
 # ----------------------------------------------------------------------
 # Junction-safe import bootstrap (the multi-harness contract)
 # ----------------------------------------------------------------------
@@ -226,8 +248,8 @@ def subprocess_run_no_utf8_env(argv):
 # ----------------------------------------------------------------------
 
 def test_kicad_utils_copies_identical():
-    a = REPO_ROOT / ".claude/skills/check-pcb/scripts/kicad_utils.py"
-    b = REPO_ROOT / ".claude/skills/check-schematic/scripts/kicad_utils.py"
+    a = REPO_ROOT / "skills/check-pcb/scripts/kicad_utils.py"
+    b = REPO_ROOT / "skills/check-schematic/scripts/kicad_utils.py"
     assert a.is_file() and b.is_file()
     assert a.read_bytes() == b.read_bytes(), (
         "check-pcb and check-schematic kicad_utils.py drifted apart — "
@@ -235,8 +257,8 @@ def test_kicad_utils_copies_identical():
 
 
 def test_report_generation_copies_identical():
-    a = REPO_ROOT / ".claude/skills/check-pcb/references/report-generation.md"
-    b = REPO_ROOT / ".claude/skills/check-schematic/references/report-generation.md"
+    a = REPO_ROOT / "skills/check-pcb/references/report-generation.md"
+    b = REPO_ROOT / "skills/check-schematic/references/report-generation.md"
     assert a.is_file() and b.is_file()
     assert a.read_bytes() == b.read_bytes(), (
         "check-pcb and check-schematic report-generation.md drifted apart — "

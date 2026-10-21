@@ -49,11 +49,13 @@ Gerber 出货的完整链路。
    清单交给 `component-preparing`；流水线绝不会静默 fallback 到别的地区。细节见
    [首次配置](#首次配置)。
 
-> **运行环境 — 只认 [Claude Code](https://claude.com/claude-code)。** [`CLAUDE.md`](CLAUDE.md)（每个 session
-> 自动加载）加上 `.claude/skills/` 下的 skill，都是 Claude Code 原生约定，所以零配置就能跑——也意味着
-> 这里没为任何其它 agent 做适配。`SKILL.md` 是开放格式，移植可行；见 [换用其它 agent](#换用其它-agent)。
+> **运行环境 — 多 harness（fork 改造）。** 所有 skill 都在 harness 无关的 `skills/` 目录；
+> [`bootstrap.py`](bootstrap.py) 把它们以链接（Windows junction / 其它系统软链）装进各 agent 的
+> 发现目录，并从 canonical 的 [`AGENTS.md`](AGENTS.md) 生成各 harness 的指令文件。已在 ZCode 和
+> Claude Code 上验证；`SKILL.md` 是开放格式，接新的 harness 通常只需在 `bootstrap.py` 里加一条。
+> 见 [换用其它 agent](#换用其它-agent)。
 >
-> **刚 clone 下来？** 用 Claude Code 打开这个文件夹，跑 `/setup`。它先问一个短问题，然后用你的语言引导你
+> **刚 clone 下来？** 用你的 agent 打开这个文件夹，跑 `/setup`。它先问一个短问题，然后用你的语言引导你
 > 配完所属地、工具链和个人档案。`USER.md` 一旦存在，它就不再触发。
 
 ---
@@ -64,16 +66,19 @@ Gerber 出货的完整链路。
 PCB-Agent-Teams/
 ├── README.md             ← 英文版
 ├── README.zh-CN.md       ← 本文件（中文版）
-├── CLAUDE.md             ← 路由表（Claude Code 每个 session 自动加载）
+├── AGENTS.md             ← canonical 路由表（ZCode 等自动加载）
+├── CLAUDE.md             ← 由 bootstrap.py 从 AGENTS.md 生成，供 Claude Code（gitignored）
+├── bootstrap.py          ← 多 harness 安装器：把 skills/ 链接进各 agent 的发现目录
+├── pcbenv.py             ← 共享环境发现（kicad-cli / KiCad Python / venv / 规格文件 walk）
 ├── LICENSE.md            ← PolyForm Noncommercial 1.0.0
 ├── THIRD_PARTY_NOTICES.md ← 引入/派生的第三方代码 MIT 声明
 ├── USER.md.example       ← 用户档案模板（复制成 USER.md）
 ├── USER.md               ← 你的档案：在手硬件 / 所属地 / 能力 / 偏好（gitignored）
 ├── requirements.txt      ← Python 依赖
 ├── assets/               ← README 用到的图片（进 git；`docs/` 是本地目录，已 gitignore）
-├── .claude/
-│   ├── skills/           ← 10 个 skill + `setup`（首次配置引导）
-│   └── references/       ← 工作区元协议（protocols.md）
+├── skills/               ← 10 个 skill + `setup`（首次配置引导）—— harness 无关
+├── tests/                ← 仓库级测试（pcbenv 等）
+├── .claude/references/   ← 工作区元协议（protocols.md）
 ├── lib_external/         ← 共享元件库（初始为空；component-preparing 往这里落 symbol/footprint/3D）
 ├── lib_cache/sources/    ← 外部库只读 cache（pre-filter 池）
 ├── Projects/<name>/      ← 项目目录（由 project-init 生成）
@@ -195,7 +200,7 @@ PCB-Agent-Teams/
 | `CLAUDE.md`（工作区根） | skill 路由表；不含 domain 知识 |
 | `Projects/<name>/CLAUDE.md` | 项目设计基准（定下就不动）：设计意图、参数、BOM 锚点 |
 | `Projects/<name>/STATUS.md` | 项目 live dashboard：当前 phase、artifact 索引、change log |
-| `.claude/skills/<skill>/SKILL.md` | skill 手册：跨项目约束、命令、失败模式 |
+| `skills/<skill>/SKILL.md` | skill 手册：跨项目约束、命令、失败模式 |
 
 ---
 
@@ -208,7 +213,7 @@ PCB-Agent-Teams/
 
 这两者上游还有第三个文件：选品证据 CSV（`bom_v01.csv`，由 `component-selecting` 写）—— 它按 MPN 记录 vendor 证据供后续 gate 用，从不用来下单或装配。
 
-细节见 [`component-preparing/references/bom_lifecycle.md`](.claude/skills/component-preparing/references/bom_lifecycle.md)。
+细节见 [`component-preparing/references/bom_lifecycle.md`](skills/component-preparing/references/bom_lifecycle.md)。
 
 ---
 
@@ -261,9 +266,9 @@ cp USER.md.example USER.md
 
 ### 运行
 
-- **Claude Code**：打开这个文件夹 —— 根 `CLAUDE.md` 自动加载，`.claude/skills/` 下的 skill 用 `/<skill-name>` 调用。新 clone 从 `/setup` 开始。
-- **其它 agent**：这里没做适配。见 [换用其它 agent](#换用其它-agent)。
-- **纯 shell**：先加载 key `set -a && source .env && set +a`，然后按 `.venv/bin/python .claude/skills/<skill>/scripts/<script>.py` 跑任意 skill 脚本。
+- **Claude Code**：先跑一次 `python bootstrap.py`，然后打开这个文件夹 —— 根 `CLAUDE.md`（生成的）自动加载，skill 用 `/<skill-name>` 调用。新 clone 从 `/setup` 开始。
+- **ZCode**：先跑一次 `python bootstrap.py` —— skill 落进 `~/.zcode/skills`，根 `AGENTS.md` 自动加载。
+- **纯 shell**：先加载 key `set -a && source .env && set +a`，然后按 `.venv/Scripts/python.exe skills/<skill>/scripts/<script>.py`（Windows）或 `.venv/bin/python skills/<skill>/scripts/<script>.py`（POSIX）跑任意 skill 脚本。
 
 ### 注意
 
@@ -275,33 +280,30 @@ cp USER.md.example USER.md
 
 ## 换用其它 agent
 
-**本仓库只面向 Claude Code 发布。** 这里没有任何东西是为 Codex、Copilot、Cursor 或 Gemini 接的，也没在它们上面测过。移植是可行的 —— 文件格式都是开放标准 —— 但那是*你*在自己 fork 里做的改动，不是仓库替你做的。有两样东西是 Claude Code 约定，都得重新指向：
-
-**1. 指令文件。** Claude Code 自动加载仓库根的 `CLAUDE.md`；这个文件就是整个工作区赖以运行的路由表。几乎所有其它 agent 读的是 `AGENTS.md`。两种改法都行：
+**这个 fork 天生多 harness。** `bootstrap.py` 一条命令把工作区接进你在用的所有 agent —— 把每个
+`skills/<name>` 链接（Windows junction / POSIX 软链）到各 harness 的发现目录，并从 canonical 的
+`AGENTS.md` 生成对应 harness 的指令文件：
 
 ```bash
-ln -s CLAUDE.md AGENTS.md        # 软链，一份文件，自动同步
-# 或者，如果你的 agent 不吃软链，写一个 AGENTS.md，内容只有：@CLAUDE.md
+python bootstrap.py            # 安装/刷新所有已知 harness（ZCode、Claude Code）
+python bootstrap.py --list     # 干跑：只看计划，不改任何东西
 ```
 
-**2. skill 目录。** `SKILL.md` *格式*是可移植的开放标准；*目录*不是 —— 每个 agent 只扫自己那条路径，无视其它。
+它幂等，clone 或布局变更后重跑即可：已正确的链接不动，失效链接（比如还指着 2026-10 之前的
+`.claude/skills` 旧布局）会被刷新，恰好同名的真实目录绝不碰，`CLAUDE.md` 只在 `AGENTS.md` 变了时才重写。
 
-| Agent | 指令文件 | skill 目录 | 调用方式 |
+harness 覆盖：
+
+| Harness | 指令文件 | skill 目录 | 状态 |
 | --- | --- | --- | --- |
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | `/<name>` |
-| Codex | `AGENTS.md` | `.agents/skills/` | `$<name>` |
-| GitHub Copilot | `.github/copilot-instructions.md` | `.github/skills/` | — |
-| Gemini CLI | `GEMINI.md` | `.gemini/skills/` | — |
+| ZCode | `AGENTS.md`（canonical，进 git） | `~/.zcode/skills/` | ✅ 已验证 |
+| Claude Code | `CLAUDE.md`（生成） | `~/.claude/skills/` | ✅ 已验证 |
+| Codex / Copilot / Gemini | — | — | 在 `bootstrap.py` 的 `HARNESSES` 里加一条 |
 
-所以把同一个文件夹以你的 agent 会扫的名字暴露出去 —— 一个软链，不重复，新 skill 自动被发现：
-
-```bash
-mkdir -p .agents && ln -s ../.claude/skills .agents/skills   # Codex；路径按上表调整
-```
-
-注意 `.gitignore` 刻意排除了 `AGENTS.md` 和 `.agents/`，为的是不让外来脚手架进上游仓库 —— 在你的 fork 里删掉那两行，否则软链不会被提交。
-
-**能期待什么。** skill *发现*能干净移植：加上上面的软链，Codex 能列出全部十一个 skill。skill *执行*是另一回事，而且**未经测试** —— skill 会 shell out 调 `kicad-cli`、项目 venv 和分销商 REST API，各 agent 沙箱命令与网络访问的方式不同。另外流水线本身只在 macOS 上测过，Windows 上软链需要开发者模式。移植请当成你自己的实验；针对非 Claude Code 运行环境提的 issue 会被关闭。
+**能期待什么。** skill *发现*这样移植是干净的。skill *执行*取决于 harness —— skill 会 shell out 调
+`kicad-cli`、项目 venv 和分销商 REST API，各 agent 沙箱命令与网络访问的方式不同。环境发现本身已收拢在
+[`pcbenv.py`](pcbenv.py)（认 `KICAD_CLI` / `KICAD_PYTHON` / `KICAD_ROOT` 环境变量覆盖），所以默认安装
+路径够不着的 harness 也可以显式指过去。
 
 ---
 
@@ -327,10 +329,10 @@ mkdir -p .agents && ln -s ../.claude/skills .agents/skills   # Codex；路径按
 
 | 我想…… | 去哪 |
 | --- | --- |
-| 配置一个新 clone | 在 Claude Code 里跑 `/setup`，或看 [`.claude/skills/setup/SKILL.md`](.claude/skills/setup/SKILL.md) |
+| 配置一个新 clone | 在 Claude Code 里跑 `/setup`，或看 [`skills/setup/SKILL.md`](skills/setup/SKILL.md) |
 | 了解整体路由 | [CLAUDE.md](CLAUDE.md) |
-| 学某个具体 skill | `.claude/skills/<skill>/SKILL.md` |
-| 看跨项目电气铁律 | `.claude/skills/circuit-design/references/electrical_invariants.md` |
+| 学某个具体 skill | `skills/<skill>/SKILL.md` |
+| 看跨项目电气铁律 | `skills/circuit-design/references/electrical_invariants.md` |
 | 看共享库命名规范 | [lib_external/CONVENTIONS.md](lib_external/CONVENTIONS.md) |
 | 看工作区元协议（计划先行 / sub-agent 分工 / 监控） | `.claude/references/protocols.md` |
 
@@ -346,7 +348,7 @@ mkdir -p .agents && ln -s ../.claude/skills .agents/skills   # Codex；路径按
 - **[circuit-synth](https://github.com/circuit-synth/circuit-synth)** —— Python 源码驱动的 `.kicad_sch` 生成，`draw-schematic` 的引擎。
 - **[kicad-sch-api](https://github.com/circuit-synth/kicad-sch-api)** —— 程序化原理图后处理（label 修正、PWR_FLAG 插入、BOM 校验）。
 - **[easyeda2kicad](https://github.com/uPesy/easyeda2kicad.py)** —— 把 LCSC / EasyEDA 元件转成 KiCad symbol / footprint / 3D 模型，供 `component-preparing` 用。
-- **[KiCadRoutingTools](https://github.com/drandyhaas/KiCadRoutingTools)**（作者 drandyhaas）—— 可选的自动布线阶段，含其 Rust 栅格布线器（MIT，源码已随仓库收进 `.claude/skills/draw-pcb/scripts/vendor/`）。
+- **[KiCadRoutingTools](https://github.com/drandyhaas/KiCadRoutingTools)**（作者 drandyhaas）—— 可选的自动布线阶段，含其 Rust 栅格布线器（MIT，源码已随仓库收进 `skills/draw-pcb/scripts/vendor/`）。
 - **[jlcsearch](https://github.com/tscircuit/jlcsearch)**（作者 tscircuit）—— 公开的 LCSC 检索 API：JP 流水线的第三采购通道，CN 流水线的主通道（且免 key）。
 - **[jlcparts](https://github.com/yaqwsx/jlcparts)**（作者 yaqwsx）—— 发布的 JLC 目录参数化数据分片；为 CN 流水线提供 jlcsearch 缺失类别（电感、磁珠）的离线参数化检索。
 - **[Playwright](https://playwright.dev/)** —— 无头浏览器探测分销商页面和抓 datasheet。

@@ -12,7 +12,7 @@ Canonical precedence (documented once, shared everywhere):
   roots (newest version first)  >  command wrappers (flatpak / snap run).
 
 Import bootstrap for a script at any depth — works from real paths AND from
-harness junctions such as ``~/.claude/skills/<skill>/...`` because
+harness junctions such as ``~/skills/<skill>/...`` because
 ``Path.resolve()`` follows junctions/symlinks back to this repo::
 
     import sys
@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 # The workspace root is where this module lives (repo root: CLAUDE.md +
-# .venv + .claude/skills). Computed from the *resolved* file so junctioned
+# .venv + skills). Computed from the *resolved* file so junctioned
 # installs land here too.
 ROOT = Path(__file__).resolve().parent
 
@@ -82,13 +82,18 @@ def workspace_root(root: str | os.PathLike | None = None) -> Path:
 
 
 def skills_root(root: str | os.PathLike | None = None) -> Path:
-    """Directory holding the skill folders (check-pcb, draw-pcb, ...)."""
+    """Directory holding the skill folders (check-pcb, draw-pcb, ...).
+
+    Current layout: ``skills/`` at the workspace root. The legacy
+    ``.claude/skills`` location is still honored so checkouts from before
+    the 2026-10 move keep working.
+    """
     ws = workspace_root(root)
-    for rel in (".claude/skills", "skills"):
+    for rel in ("skills", ".claude" + "/skills"):
         cand = ws / rel
         if cand.is_dir():
             return cand
-    return ws / ".claude/skills"
+    return ws / "skills"
 
 
 # ---------------------------------------------------------------------
@@ -376,26 +381,39 @@ def find_kicad_subdir(name: str) -> Path | None:
 
 
 # ---------------------------------------------------------------------
-# Project CLAUDE.md
+# Project instruction file (AGENTS.md canonical, CLAUDE.md legacy)
 # ---------------------------------------------------------------------
 
-def find_project_claude_md(project_dir: str | os.PathLike,
-                           root: str | os.PathLike | None = None) -> Path | None:
-    """Closest CLAUDE.md above `project_dir`, stopping at (and excluding)
-    the workspace root — the workspace CLAUDE.md is a routing index, not a
+_SPEC_NAMES = ("AGENTS.md", "CLAUDE.md")
+
+
+def find_project_spec(project_dir: str | os.PathLike,
+                      root: str | os.PathLike | None = None) -> Path | None:
+    """Closest project instruction file above `project_dir` — AGENTS.md
+    (canonical) or CLAUDE.md (legacy) — stopping at (and excluding) the
+    workspace root, whose own instruction file is a routing index, not a
     per-project spec. Falls back to a recursive search below project_dir.
     """
     ws = workspace_root(root)
     start = Path(project_dir).resolve()
     walk = start
     for _ in range(6):
-        cand = walk / "CLAUDE.md"
-        if cand.is_file() and walk != ws:
-            return cand
+        for name in _SPEC_NAMES:
+            cand = walk / name
+            if cand.is_file() and walk != ws:
+                return cand
         if walk.parent == walk or walk == ws:
             break
         walk = walk.parent
-    for cand in sorted(start.rglob("CLAUDE.md")):
-        if cand.parent != ws:
-            return cand
+    for name in _SPEC_NAMES:
+        for cand in sorted(start.rglob(name)):
+            if cand.parent != ws:
+                return cand
     return None
+
+
+def find_project_claude_md(project_dir: str | os.PathLike,
+                           root: str | os.PathLike | None = None) -> Path | None:
+    """Back-compat alias for find_project_spec() (name kept: existing
+    call sites predate the AGENTS.md flip)."""
+    return find_project_spec(project_dir, root)

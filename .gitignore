@@ -57,10 +57,10 @@ docs/
 # Archives and generated/binary reference payloads
 *.zip
 
-# Claude Code is the only supported agent entrypoint in this workspace.
+# Multi-harness (fork): AGENTS.md is the canonical tracked instruction file.
+# CLAUDE.md is generated from it by bootstrap.py for Claude Code compat.
 # Keep accidental Codex / Antigravity scaffolding out of the project.
-# Porting to another agent is a fork-level change — see README.md §Using another agent.
-AGENTS.md
+/CLAUDE.md
 .agents/
 .Codex/
 .antigravitycli/

@@ -8,7 +8,7 @@ This repository is licensed under the PolyForm Noncommercial License 1.0.0 (see 
 
 - Upstream: <https://github.com/aklofas/kicad-happy>
 - License: MIT
-- Applies to: derived code in `.claude/skills/check-pcb/scripts/` (EMC / thermal / lifecycle audit / project config / analysis cache / issue export)
+- Applies to: derived code in `skills/check-pcb/scripts/` (EMC / thermal / lifecycle audit / project config / analysis cache / issue export)
 
 ```text
 MIT License
@@ -39,8 +39,8 @@ SOFTWARE.
 ## KiCadRoutingTools
 
 - Upstream: <https://github.com/drandyhaas/KiCadRoutingTools>
-- License: MIT (full text vendored at `.claude/skills/draw-pcb/scripts/vendor/KiCadRoutingTools/LICENSE`)
-- Applies to: vendored code in `.claude/skills/draw-pcb/scripts/vendor/KiCadRoutingTools/` (auto-routing + Rust grid router)
+- License: MIT (full text vendored at `skills/draw-pcb/scripts/vendor/KiCadRoutingTools/LICENSE`)
+- Applies to: vendored code in `skills/draw-pcb/scripts/vendor/KiCadRoutingTools/` (auto-routing + Rust grid router)
 
 ```text
 MIT License

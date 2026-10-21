@@ -49,7 +49,7 @@ lib_external/
 **禁止**：
 - 手工拷 `.kicad_sym` / `.kicad_mod` 进来 — symbol pin 顺序必须可追溯回 vendoring + datasheet 一一对照
 - 手编辑 `components.kicad_sym` 文件内部块 — 下次 vendor 同 MPN 会被覆盖
-- 在任何 skill / 脚本里硬编码 LCSC 或 Ultra Librarian 作为唯一抓取路径 — locale routing 决定，配置写在 `.claude/skills/component-selecting-<locale>/scripts/locale_mapping.yaml`
+- 在任何 skill / 脚本里硬编码 LCSC 或 Ultra Librarian 作为唯一抓取路径 — locale routing 决定，配置写在 `skills/component-selecting-<locale>/scripts/locale_mapping.yaml`
 
 ## 3. 冲突解决
 
@@ -150,7 +150,7 @@ agent-browser --session-name dkjp close   # session 自动写入 ~/.agent-browse
 ls -la ~/.agent-browser/sessions/dkjp*
 
 # 3) 跑 self-check（应看到 "agent-browser dkjp session exists ✅" + 全部 PASS）
-python3 .claude/skills/component-selecting-JP/scripts/component_select.py --self-check
+python3 skills/component-selecting-JP/scripts/component_select.py --self-check
 
 # 4) 可选：加密 session（cookie 含登录态，相当于一份长效凭证）
 export AGENT_BROWSER_ENCRYPTION_KEY=$(openssl rand -hex 32)   # 加进 ~/.zshrc
