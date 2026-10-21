@@ -1,42 +1,27 @@
 """Shared helper for draw-pcb toolbox tools that mutate the board.
 
 Board mutation needs the `pcbnew` module, which only exists inside KiCad's
-bundled Python (not the workspace .venv). This module locates that interpreter
-and invokes _kicad_python_helper.py as a subprocess.
+bundled Python (not the workspace .venv). Interpreter discovery lives in
+pcbenv (workspace root); this module invokes _kicad_python_helper.py as a
+subprocess with that interpreter.
 """
-import glob
 import json
-import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 _HELPER = Path(__file__).resolve().parent.parent / "_kicad_python_helper.py"
 
-_KICAD_PYTHON_CANDIDATES = [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/"
-    "Versions/Current/bin/python3",
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/"
-    "Versions/3.9/bin/python3.9",
-    "/usr/lib/kicad/python3",
-]
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+import pcbenv
 
 
 def find_kicad_python() -> str | None:
-    env_py = os.environ.get("KICAD_PYTHON")
-    if env_py and Path(env_py).exists():
-        return env_py
-    for p in _KICAD_PYTHON_CANDIDATES:
-        if Path(p).exists():
-            return p
-    # Windows install roots (versioned sub-dirs + flat layout on custom drives)
-    for pat in (r"C:\Program Files\KiCad\*\bin\python.exe",
-                r"F:\KiCad\*\bin\python.exe",
-                r"F:\KiCad\bin\python.exe"):
-        hits = sorted(glob.glob(pat))
-        if hits:
-            return hits[-1]
-    return None
+    return pcbenv.find_kicad_python()
 
 
 def call_helper(spec: dict, timeout: int = 120) -> dict:

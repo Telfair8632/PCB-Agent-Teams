@@ -562,20 +562,19 @@ def _is_real_datasheet_pdf(pdf_path: Path) -> bool:
 
 # ===================================================================
 # Symbol library 索引 — verify_footprints 只扫 footprint，这里补 symbol
+# （搜索路径 shared: pcbenv）
 # ===================================================================
 
-_KICAD_SYM_DIRS = [
-    Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols"),
-    Path("/usr/share/kicad/symbols"),
-    Path("/usr/local/share/kicad/symbols"),
-]
-# Windows install roots (standard Program Files + custom drive layouts)
-for _pat in (r"C:\Program Files\KiCad\*\share\kicad\symbols",
-             r"F:\KiCad\*\share\kicad\symbols",
-             r"F:\KiCad\share\kicad\symbols"):
-    for _p in glob.glob(_pat):
-        _KICAD_SYM_DIRS.append(Path(_p))
-_LIB_EXTERNAL_DIR = Path(__file__).resolve().parents[4] / "lib_external"
+# Shared environment discovery lives at the workspace root.
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
+_LIB_EXTERNAL_DIR = pcbenv.workspace_root() / "lib_external"
 
 # 顶层 symbol 声明：行首任意空白（tab 或空格），然后 (symbol "Name"
 # KiCad 标准库用 1 tab，easyeda2kicad 用 2 空格 — 两种都得吃。
@@ -584,10 +583,7 @@ _TOPLEVEL_SYMBOL_PAT = re.compile(r'^[ \t]+\(symbol\s+"([^"]+)"', re.MULTILINE)
 
 
 def _find_kicad_sym_dir() -> Optional[Path]:
-    for p in _KICAD_SYM_DIRS:
-        if p.exists():
-            return p
-    return None
+    return pcbenv.find_kicad_subdir("symbols")
 
 
 def build_symbol_index() -> Dict[tuple, Path]:

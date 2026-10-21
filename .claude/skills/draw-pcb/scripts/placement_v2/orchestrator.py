@@ -37,17 +37,19 @@ CLAUDE.md placement schema (all optional):
 from __future__ import annotations
 
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
-import glob
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import json
-import os
 import re
 import subprocess
 import sys
@@ -284,25 +286,7 @@ def extract_pcb_data(pcb_path: Path) -> Tuple[Dict[str, Set[str]],
 # Apply via existing helper -----------------------------------------------
 
 def _find_kicad_python() -> str:
-    env_py = os.environ.get("KICAD_PYTHON")
-    if env_py and Path(env_py).exists():
-        return env_py
-    candidates = [
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
-        "/usr/lib/kicad/python3",
-    ]
-    for p in candidates:
-        if Path(p).exists():
-            return p
-    # Windows install roots (versioned sub-dirs + flat layout on custom drives)
-    for pat in (r"C:\Program Files\KiCad\*\bin\python.exe",
-                r"F:\KiCad\*\bin\python.exe",
-                r"F:\KiCad\bin\python.exe"):
-        hits = sorted(glob.glob(pat))
-        if hits:
-            return hits[-1]
-    return ""
+    return pcbenv.find_kicad_python() or ""
 
 
 def _call_helper(spec: Dict, timeout: int = 60) -> Dict:

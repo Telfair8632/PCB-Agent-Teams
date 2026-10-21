@@ -11,14 +11,18 @@ the gate will switch to that — see spec §10.)
 from __future__ import annotations
 
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
 import json
 import os
@@ -35,11 +39,9 @@ if __package__ in (None, ""):
 else:
     from . import coverage_scan, distributor_csv, load_preferences, render_order_guide
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
-KICAD_EXPORT_GERBERS = WORKSPACE_ROOT / ".claude/skills/release/scripts/export_gerbers.py"
-VENV_PYTHON = WORKSPACE_ROOT / (
-    ".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python"
-)
+WORKSPACE_ROOT = pcbenv.workspace_root()
+KICAD_EXPORT_GERBERS = pcbenv.skills_root() / "release" / "scripts" / "export_gerbers.py"
+VENV_PYTHON = Path(pcbenv.venv_python())
 
 # JST = UTC+9. Use a fixed offset rather than zoneinfo to avoid platform tz-data issues.
 from datetime import timedelta

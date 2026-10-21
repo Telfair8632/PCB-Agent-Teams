@@ -1,193 +1,42 @@
-"""Auto-detect kicad-cli across all common installation methods.
+"""kicad-cli invocation helpers for kidoc.
 
-Searches for the kicad-cli executable across: PATH, Flatpak, Snap,
-macOS app bundles, Homebrew, Nix, Windows Program Files, Chocolatey,
-and MSYS2.  Gracefully returns None if not found — all kidoc features
-that use kicad-cli degrade to alternative renderers or skip.
+Discovery (PATH, Flatpak, Snap, macOS app bundles, Homebrew, Nix, Windows
+Program Files, Chocolatey, MSYS2, custom drives, and the KICAD_CLI env var)
+lives in pcbenv at the workspace root — one canonical implementation shared
+by every skill. This module keeps the kidoc-side execution helpers: running
+the CLI (multi-word wrapper commands included), Flatpak-safe temp/output
+redirection, and SVG / 3D export wrappers.
 
 Zero external dependencies — Python stdlib only.
 """
 
 from __future__ import annotations
 
-import glob
 import os
-import platform
-import shutil
 import subprocess
+import sys
+from pathlib import Path
+
+# Shared environment discovery lives at the workspace root.
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
 
 
 def find_kicad_cli() -> str | None:
     """Find the kicad-cli executable.
 
-    Search order:
-    1. PATH (system package managers: apt, pacman, dnf, brew, nix-env, etc.)
-    2. Flatpak (Linux: ``flatpak run --command=kicad-cli org.kicad.KiCad``)
-    3. Snap (Linux: ``/snap/kicad/current/bin/kicad-cli`` or ``snap run``)
-    4. macOS app bundle (``/Applications/KiCad/*.app/Contents/MacOS/kicad-cli``)
-    5. Homebrew (macOS: ``/opt/homebrew/bin/kicad-cli``, ``/usr/local/bin/kicad-cli``)
-    6. Nix (``~/.nix-profile/bin/kicad-cli``, ``/nix/var/nix/profiles/*/bin/kicad-cli``)
-    7. Windows Program Files (``C:\\Program Files\\KiCad\\*\\bin\\kicad-cli.exe``)
-    8. Chocolatey (Windows: ``C:\\ProgramData\\chocolatey\\bin\\kicad-cli.exe``)
-    9. MSYS2 (Windows: ``C:\\msys64\\mingw64\\bin\\kicad-cli.exe``)
+    Delegates to pcbenv.find_kicad_cli(): PATH first, then Flatpak, Snap,
+    macOS app bundles, Homebrew, Nix, Windows Program Files / Chocolatey /
+    MSYS2 / custom drives; the KICAD_CLI env var overrides everything.
 
     Returns a command string that can be passed to ``_run_cli()``, or None.
     """
-    # 1. Check PATH (covers apt, pacman, dnf, brew, nix-env, user symlinks)
-    path = shutil.which('kicad-cli')
-    if path:
-        return path
-
-    system = platform.system()
-
-    # --- Linux-specific methods ---
-    if system == 'Linux':
-        # 2. Flatpak
-        cmd = _check_flatpak()
-        if cmd:
-            return cmd
-
-        # 3. Snap
-        cmd = _check_snap()
-        if cmd:
-            return cmd
-
-    # --- macOS-specific methods ---
-    if system == 'Darwin':
-        # 4. App bundle
-        cmd = _check_macos_app_bundle()
-        if cmd:
-            return cmd
-
-        # 5. Homebrew (ARM and Intel paths)
-        for brew_path in ['/opt/homebrew/bin/kicad-cli',
-                          '/usr/local/bin/kicad-cli']:
-            if os.path.isfile(brew_path):
-                return brew_path
-
-    # --- Cross-platform: Nix ---
-    # 6. Nix profiles
-    cmd = _check_nix()
-    if cmd:
-        return cmd
-
-    # --- Windows-specific methods ---
-    if system == 'Windows':
-        # 7. Program Files (standard installer)
-        cmd = _check_windows_program_files()
-        if cmd:
-            return cmd
-
-        # 8. Chocolatey
-        choco = os.path.join(
-            os.environ.get('ChocolateyInstall',
-                           r'C:\ProgramData\chocolatey'),
-            'bin', 'kicad-cli.exe')
-        if os.path.isfile(choco):
-            return choco
-
-        # 9. MSYS2
-        for msys_root in [r'C:\msys64', r'C:\msys32']:
-            for env in ['mingw64', 'mingw32', 'ucrt64', 'clang64']:
-                msys = os.path.join(msys_root, env, 'bin', 'kicad-cli.exe')
-                if os.path.isfile(msys):
-                    return msys
-
-    return None
-
-
-def _check_flatpak() -> str | None:
-    """Check for KiCad installed via Flatpak."""
-    if not shutil.which('flatpak'):
-        return None
-    try:
-        result = subprocess.run(
-            ['flatpak', 'run', '--command=kicad-cli',
-             'org.kicad.KiCad', '--version'],
-            capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
-        if result.returncode == 0:
-            return 'flatpak run --command=kicad-cli org.kicad.KiCad'
-    except (OSError, subprocess.TimeoutExpired):
-        pass
-    return None
-
-
-def _check_snap() -> str | None:
-    """Check for KiCad installed via Snap."""
-    # Direct path check (faster than running snap)
-    snap_paths = [
-        '/snap/kicad/current/bin/kicad-cli',
-        '/snap/kicad/current/usr/bin/kicad-cli',
-    ]
-    for p in snap_paths:
-        if os.path.isfile(p):
-            return p
-
-    # Fallback: try snap run
-    if shutil.which('snap'):
-        try:
-            result = subprocess.run(
-                ['snap', 'run', 'kicad.kicad-cli', '--version'],
-                capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
-            if result.returncode == 0:
-                return 'snap run kicad.kicad-cli'
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    return None
-
-
-def _check_macos_app_bundle() -> str | None:
-    """Check for KiCad macOS app bundle."""
-    # Multiple naming conventions across KiCad versions
-    patterns = [
-        '/Applications/KiCad/KiCad*.app/Contents/MacOS/kicad-cli',
-        '/Applications/KiCad*.app/Contents/MacOS/kicad-cli',
-        os.path.expanduser('~/Applications/KiCad*.app/Contents/MacOS/kicad-cli'),
-    ]
-    candidates = []
-    for pattern in patterns:
-        candidates.extend(glob.glob(pattern))
-    # Sort descending to prefer newest version
-    for c in sorted(set(candidates), reverse=True):
-        if os.path.isfile(c):
-            return c
-    return None
-
-
-def _check_nix() -> str | None:
-    """Check for KiCad installed via Nix."""
-    nix_paths = [
-        os.path.expanduser('~/.nix-profile/bin/kicad-cli'),
-        '/nix/var/nix/profiles/default/bin/kicad-cli',
-    ]
-    # Also check per-user profiles
-    nix_profiles = glob.glob('/nix/var/nix/profiles/per-user/*/bin/kicad-cli')
-    nix_paths.extend(nix_profiles)
-    for p in nix_paths:
-        if os.path.isfile(p):
-            return p
-    return None
-
-
-def _check_windows_program_files() -> str | None:
-    """Check Windows install roots (Program Files + custom drives)."""
-    roots = []
-    for pf_var in ['ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432']:
-        pf = os.environ.get(pf_var)
-        if pf:
-            roots.append(pf)
-    # custom install location (e.g. install on another drive)
-    roots.append(r'F:\KiCad')
-    for pf in roots:
-        candidates = (
-            glob.glob(os.path.join(pf, 'KiCad', '*', 'bin', 'kicad-cli.exe'))
-            + glob.glob(os.path.join(pf, '*', 'bin', 'kicad-cli.exe'))
-            + glob.glob(os.path.join(pf, 'bin', 'kicad-cli.exe'))
-        )
-        for c in sorted(set(candidates), reverse=True):
-            if os.path.isfile(c):
-                return c
-    return None
+    return pcbenv.find_kicad_cli()
 
 
 # ======================================================================
@@ -213,13 +62,12 @@ def _safe_temp_dir() -> str:
 
 def _run_cli(cli_cmd: str, args: list[str],
              timeout: int = 120) -> subprocess.CompletedProcess:
-    """Run a kicad-cli command, handling both path and multi-word commands."""
-    if ' ' in cli_cmd:
-        parts = cli_cmd.split()
-    else:
-        parts = [cli_cmd]
+    """Run a kicad-cli command, handling both path and multi-word commands
+    (splitting rules shared: pcbenv.cli_argv — real paths with spaces stay
+    one argv element, wrapper commands get split)."""
     return subprocess.run(
-        parts + args, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
+        pcbenv.cli_argv(cli_cmd, args), capture_output=True, text=True,
+        timeout=timeout, encoding="utf-8", errors="replace")
 
 
 def kicad_cli_version(cli_cmd: str) -> str | None:

@@ -15,21 +15,20 @@ import argparse
 import datetime as dt
 import json
 import re
-import shutil
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
 
+# Shared environment discovery lives at the workspace root.
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
 
-KICAD_CLI_CANDIDATES = [
-    "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-    "/usr/bin/kicad-cli",
-    "/usr/local/bin/kicad-cli",
-    "/snap/kicad/current/bin/kicad-cli",
-    "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe",
-    "F:/KiCad/bin/kicad-cli.exe",
-]
 
 DEFAULT_NON_COPPER_LAYERS = [
     "F.Paste",
@@ -49,11 +48,7 @@ def find_kicad_cli(explicit: str | None = None) -> str:
             return str(path)
         raise FileNotFoundError(f"kicad-cli not found: {explicit}")
 
-    for candidate in KICAD_CLI_CANDIDATES:
-        if Path(candidate).exists():
-            return candidate
-
-    found = shutil.which("kicad-cli")
+    found = pcbenv.find_kicad_cli()
     if found:
         return found
 
@@ -138,6 +133,7 @@ def export_fab(args: argparse.Namespace) -> dict:
         raise ValueError(f"expected .kicad_pcb, got: {pcb_path}")
 
     kicad_cli = find_kicad_cli(args.kicad_cli)
+    cli = pcbenv.cli_argv(kicad_cli)  # wrapper commands (flatpak/snap) are multi-word
     schematic = find_matching_schematic(pcb_path, args.schematic)
 
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -153,7 +149,7 @@ def export_fab(args: argparse.Namespace) -> dict:
     results: dict[str, dict | None] = {}
 
     gerbers_cmd = [
-        kicad_cli,
+        *cli,
         "pcb",
         "export",
         "gerbers",
@@ -174,7 +170,7 @@ def export_fab(args: argparse.Namespace) -> dict:
 
     drill_report = gerber_dir / f"{pcb_path.stem}-drill_report.txt"
     drill_cmd = [
-        kicad_cli,
+        *cli,
         "pcb",
         "export",
         "drill",
@@ -197,7 +193,7 @@ def export_fab(args: argparse.Namespace) -> dict:
 
     pos_path = assembly_dir / f"{pcb_path.stem}_positions.csv"
     pos_cmd = [
-        kicad_cli,
+        *cli,
         "pcb",
         "export",
         "pos",
@@ -246,7 +242,7 @@ def export_fab(args: argparse.Namespace) -> dict:
     if schematic and not args.no_bom:
         bom_path = assembly_dir / f"{pcb_path.stem}_assembly_bom.csv"
         bom_cmd = [
-            kicad_cli,
+            *cli,
             "sch",
             "export",
             "bom",

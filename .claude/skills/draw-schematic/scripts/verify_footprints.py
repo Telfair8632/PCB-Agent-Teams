@@ -23,14 +23,18 @@
     python verify_footprints.py <py_file> --fix    # 查 + 自动修 .py
 """
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
 import ast
 import re
@@ -41,26 +45,14 @@ from typing import Dict, List, Optional, Tuple
 
 
 # ============================================================
-# Footprint 库搜索路径（硬编码，跨平台）
+# Footprint 库搜索路径（shared: pcbenv）
 # ============================================================
 
-_KICAD_FP_DIRS = [
-    "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints",  # macOS
-    "/usr/share/kicad/footprints",                                       # Linux apt
-    "/usr/local/share/kicad/footprints",                                 # Linux compile
-    "/snap/kicad/current/share/kicad/footprints",                        # Linux snap
-    r"C:\Program Files\KiCad\10.0\share\kicad\footprints",               # Windows
-    r"F:\KiCad\share\kicad\footprints",                                  # Windows custom drive
-]
-
-_LIB_EXTERNAL = Path(__file__).resolve().parents[4] / "lib_external"
+_LIB_EXTERNAL = pcbenv.workspace_root() / "lib_external"
 
 
 def _find_kicad_fp_dir() -> Path | None:
-    for p in _KICAD_FP_DIRS:
-        if Path(p).exists():
-            return Path(p)
-    return None
+    return pcbenv.find_kicad_subdir("footprints")
 
 
 def build_footprint_index() -> Tuple[Dict[str, List[str]], Dict[Tuple[str, str], Path]]:

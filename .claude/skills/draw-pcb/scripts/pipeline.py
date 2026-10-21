@@ -22,79 +22,32 @@ finishes, pick one: run Phase E, route by hand in the KiCad GUI, or skip
 routing and go straight to review.
 """
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
-import glob
 import json
-import os
-import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-KICAD_SKILLS_ROOT = SCRIPT_DIR.parent.parent  # .claude/skills/
+KICAD_SKILLS_ROOT = pcbenv.skills_root()
+KICAD_ROOT = pcbenv.workspace_root()
 
-# Locate workspace root (contains CLAUDE.md + .venv)
-KICAD_ROOT = SCRIPT_DIR
-while KICAD_ROOT.parent != KICAD_ROOT:
-    if (KICAD_ROOT / "CLAUDE.md").exists() and (KICAD_ROOT / ".venv").is_dir():
-        break
-    KICAD_ROOT = KICAD_ROOT.parent
-
-def _ver_sorted(pattern: str):
-    """Glob with numeric version sort (10.0 ranks above 9.0)."""
-    return sorted(
-        glob.glob(pattern),
-        key=lambda s: [int(t) for t in re.findall(r"\d+", s)],
-    )
-
-
-KICAD_CLI = ""
-for p in [
-    "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-    "/usr/bin/kicad-cli",
-    "/usr/local/bin/kicad-cli",
-    "/snap/kicad/current/bin/kicad-cli",
-]:
-    if Path(p).exists():
-        KICAD_CLI = p
-        break
-if not KICAD_CLI:
-    KICAD_CLI = shutil.which("kicad-cli") or ""
-if not KICAD_CLI:
-    # Windows: KiCad install dirs, newest version first
-    _win_cli = _ver_sorted(r"C:\Program Files\KiCad\*\bin\kicad-cli.exe") + _ver_sorted(r"F:\KiCad\*\bin\kicad-cli.exe") + [r"F:\KiCad\bin\kicad-cli.exe"]
-    for p in _win_cli:
-        KICAD_CLI = p
-        break
-
-KICAD_PYTHON = os.environ.get("KICAD_PYTHON", "")
-if not (KICAD_PYTHON and Path(KICAD_PYTHON).exists()):
-    KICAD_PYTHON = ""
-    for p in [
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
-        "/usr/lib/kicad/python3",
-    ] + _ver_sorted(r"C:\Program Files\KiCad\*\bin\python.exe") + _ver_sorted(r"F:\KiCad\*\bin\python.exe") + [r"F:\KiCad\bin\python.exe"]:
-        if Path(p).exists():
-            KICAD_PYTHON = p
-            break
-
-if KICAD_ROOT:
-    _venv_sub = "Scripts/python.exe" if os.name == "nt" else "bin/python"
-    VENV_PYTHON = str(KICAD_ROOT / ".venv" / _venv_sub)
-else:
-    VENV_PYTHON = ""
+KICAD_CLI = pcbenv.find_kicad_cli() or ""
+KICAD_PYTHON = pcbenv.find_kicad_python() or ""
+VENV_PYTHON = pcbenv.venv_python()
 
 # Paths updated 2026-05 after skill consolidation:
 #   emc/kicad analyzers → check-schematic / check-pcb
@@ -119,24 +72,9 @@ def phase0_preflight(project_dir: Path) -> Dict:
                  if ".history" not in str(f)
                  and not any(f.stem.endswith(sfx) for sfx in SIDE_SUFFIX)]
 
-    # Find CLAUDE.md: walk up from project_dir until we hit workspace root.
-    # Pick the one closest to project_dir but stop before reaching workspace
-    # CLAUDE.md (which is a routing index, not a per-project spec).
-    claude_md = None
-    walk = project_dir.resolve()
-    workspace_root = KICAD_ROOT.resolve() if KICAD_ROOT else None
-    for _ in range(6):
-        cand = walk / "CLAUDE.md"
-        if cand.exists() and (workspace_root is None or walk != workspace_root):
-            claude_md = cand
-            break
-        if walk.parent == walk or (workspace_root and walk == workspace_root):
-            break
-        walk = walk.parent
-    if not claude_md:
-        for cand in project_dir.rglob("CLAUDE.md"):
-            claude_md = cand
-            break
+    # Find CLAUDE.md: closest above project_dir, stopping before the
+    # workspace root (its CLAUDE.md is a routing index, not a project spec).
+    claude_md = pcbenv.find_project_claude_md(project_dir, KICAD_ROOT)
 
     result = {
         "ok": True,
@@ -400,7 +338,7 @@ def phase3_drc(pcb_path: str, skip: bool = False) -> Dict:
         return {"ok": True, "skipped": True}
 
     drc_file = Path(pcb_path).with_suffix(".drc.json")
-    cmd = [KICAD_CLI, "pcb", "drc", "--format", "json", "-o", str(drc_file), pcb_path]
+    cmd = pcbenv.cli_argv(KICAD_CLI, ["pcb", "drc", "--format", "json", "-o", str(drc_file), pcb_path])
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     if not drc_file.exists():
         return {"ok": False, "error": "DRC produced no output", "stderr": proc.stderr[:300]}
@@ -460,12 +398,12 @@ def phase4_export_visuals(pcb_path: str) -> Dict:
 
     layers = "F.Cu,B.Cu,F.SilkS,F.Fab,Edge.Cuts"
 
-    pdf_cmd = [KICAD_CLI, "pcb", "export", "pdf", "-o", str(pdf_path),
-               "--layers", layers, str(pcb)]
+    pdf_cmd = pcbenv.cli_argv(KICAD_CLI, ["pcb", "export", "pdf", "-o", str(pdf_path),
+                       "--layers", layers, str(pcb)])
     pdf_ok = subprocess.run(pdf_cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace").returncode == 0
 
-    svg_cmd = [KICAD_CLI, "pcb", "export", "svg", "-o", str(svg_path),
-               "--layers", layers, str(pcb)]
+    svg_cmd = pcbenv.cli_argv(KICAD_CLI, ["pcb", "export", "svg", "-o", str(svg_path),
+                       "--layers", layers, str(pcb)])
     svg_ok = subprocess.run(svg_cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace").returncode == 0
 
     if pdf_ok:

@@ -22,37 +22,29 @@
     python verify_topology.py <project.py>
 """
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
 import ast
 import json
 import re
-import shutil
 import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 
-KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
-if not Path(KICAD_CLI).exists():
-    KICAD_CLI = shutil.which("kicad-cli") or ""
-if not KICAD_CLI:
-    import glob as _glob
-    for _pat in (r"C:\Program Files\KiCad\*\bin\kicad-cli.exe",
-                 r"F:\KiCad\*\bin\kicad-cli.exe",
-                 r"F:\KiCad\bin\kicad-cli.exe"):
-        _hits = sorted(_glob.glob(_pat))
-        if _hits:
-            KICAD_CLI = _hits[-1]
-            break
+KICAD_CLI = pcbenv.find_kicad_cli() or ""
 
 
 # ============================================================
@@ -227,7 +219,7 @@ def parse_py_topology(py_file: Path) -> tuple[dict, dict]:
 def export_netlist(top_sch: Path) -> Path:
     """跑 kicad-cli 出 KiCad 格式 netlist。"""
     out = top_sch.with_suffix(".net")
-    cmd = [KICAD_CLI, "sch", "export", "netlist", "-o", str(out), str(top_sch)]
+    cmd = pcbenv.cli_argv(KICAD_CLI, ["sch", "export", "netlist", "-o", str(out), str(top_sch)])
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if not out.exists():
         raise RuntimeError(f"netlist 没生成: {result.stderr}")

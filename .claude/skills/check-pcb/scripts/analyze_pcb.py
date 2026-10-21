@@ -33,6 +33,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import re
 
+# Shared environment discovery lives at the workspace root.
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 from sexp_parser import (
     find_all,
     find_first,
@@ -5774,16 +5783,10 @@ def _norm_silk_value(num_str: str, unit: str) -> tuple:
 
 
 def _find_project_claude_md(pcb_path: str) -> Path | None:
-    """Walk up from a .kicad_pcb to the closest Projects/<name>/CLAUDE.md."""
-    p = Path(pcb_path).resolve().parent
-    for _ in range(6):
-        candidate = p / "CLAUDE.md"
-        if candidate.is_file() and "Projects" in p.parts:
-            return candidate
-        if p.parent == p:
-            break
-        p = p.parent
-    return None
+    """Walk up from a .kicad_pcb to the closest project CLAUDE.md
+    (shared: pcbenv.find_project_claude_md — stops before the workspace
+    root, whose CLAUDE.md is a routing index)."""
+    return pcbenv.find_project_claude_md(pcb_path)
 
 
 def analyze_silk_spec_consistency(silkscreen: dict, pcb_path: str) -> list[dict]:

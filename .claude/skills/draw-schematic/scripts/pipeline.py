@@ -36,22 +36,24 @@
     }
 """
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
 import ast
-import glob
 import importlib.util
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -59,13 +61,10 @@ import time
 from pathlib import Path
 from typing import Dict, Optional
 
-# Workspace root = .../PCB-Agent-Teams/.claude/skills/draw-schematic/scripts/pipeline.py → parents[4].
-# Override with KICAD_ROOT env var if the layout ever moves.
-KICAD_ROOT = Path(os.environ.get("KICAD_ROOT") or Path(__file__).resolve().parents[4])
-_venv_bin = "Scripts" if os.name == "nt" else "bin"
-_venv_exe = "python.exe" if os.name == "nt" else "python"
-VENV_PYTHON = KICAD_ROOT / ".venv" / _venv_bin / _venv_exe
-KICAD_SKILLS_ROOT = KICAD_ROOT / ".claude" / "skills"
+# Workspace root + venv (shared: pcbenv; KICAD_ROOT env override honored)
+KICAD_ROOT = pcbenv.workspace_root()
+VENV_PYTHON = Path(pcbenv.venv_python())
+KICAD_SKILLS_ROOT = pcbenv.skills_root()
 # Paths updated 2026-05 after skill consolidation:
 #   kicad/scripts/analyze_schematic.py → check-schematic/scripts/
 #   spice/scripts/simulate_subcircuits.py → check-schematic/scripts/
@@ -76,15 +75,7 @@ SPICE_SIMULATE = KICAD_SKILLS_ROOT / "check-schematic" / "scripts" / "simulate_s
 def _build_symbol_env() -> dict:
     """Build env dict with KICAD_SYMBOL_DIR including lib_external/."""
     env = os.environ.copy()
-    kicad_sym_dirs = [
-        "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
-        "/usr/share/kicad/symbols",
-        "/usr/local/share/kicad/symbols",
-    ]
-    for pat in (r"C:\Program Files\KiCad\*\share\kicad\symbols",
-                r"F:\KiCad\*\share\kicad\symbols",
-                r"F:\KiCad\share\kicad\symbols"):
-        kicad_sym_dirs.extend(glob.glob(pat))
+    kicad_sym_dirs = [str(d / "symbols") for d in pcbenv.kicad_share_dirs()]
     lib_external = str(KICAD_ROOT / "lib_external")
     existing = env.get("KICAD_SYMBOL_DIR", "")
     paths = [p for p in existing.split(os.pathsep) if p] + kicad_sym_dirs + [lib_external]
@@ -93,27 +84,15 @@ def _build_symbol_env() -> dict:
 
 
 # ============================================================
-# 硬编码：kicad-cli PATH 检查（跨平台）
+# 硬编码：kicad-cli 查找（shared: pcbenv）
 # ============================================================
 
 def find_kicad_cli() -> str:
-    """硬编码搜索路径。失败 fail-fast。"""
-    candidates = [
-        "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",  # macOS
-        "/usr/bin/kicad-cli",                                       # Linux apt
-        "/usr/local/bin/kicad-cli",                                 # Linux symlink
-        "/snap/kicad/current/bin/kicad-cli",                        # Linux snap
-        r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe",           # Windows
-        r"C:\Program Files\KiCad\9.0\bin\kicad-cli.exe",            # Windows 9
-        r"F:\KiCad\bin\kicad-cli.exe",                              # Windows custom drive
-    ]
-    for c in candidates:
-        if Path(c).exists():
-            return c
-    cli_in_path = shutil.which("kicad-cli")
-    if cli_in_path:
-        return cli_in_path
-    sys.exit("❌ kicad-cli 找不到。装 KiCad 10 或加到 PATH。")
+    """共享发现逻辑。失败 fail-fast。"""
+    cli = pcbenv.find_kicad_cli()
+    if not cli:
+        sys.exit("❌ kicad-cli 找不到。装 KiCad 10 或加到 PATH（或设 KICAD_CLI 环境变量）。")
+    return cli
 
 
 # ============================================================
@@ -273,7 +252,7 @@ def run_erc(sch_path: Path, kicad_cli: str) -> Dict:
     erc_file = Path(erc_name)
     erc_file.unlink(missing_ok=True)
     run_started = time.time()
-    cmd = [kicad_cli, "sch", "erc", "--format", "json", "-o", str(erc_file), str(sch_path)]
+    cmd = pcbenv.cli_argv(kicad_cli, ["sch", "erc", "--format", "json", "-o", str(erc_file), str(sch_path)])
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
 
     if not erc_file.exists():
@@ -372,7 +351,7 @@ def _print_erc_summary(erc_data: Dict, prefix: str = "") -> None:
 def run_export_pdf(sch_path: Path, kicad_cli: str) -> Path:
     """出 PDF。"""
     pdf = sch_path.with_suffix(".pdf")
-    cmd = [kicad_cli, "sch", "export", "pdf", "-o", str(pdf), str(sch_path)]
+    cmd = pcbenv.cli_argv(kicad_cli, ["sch", "export", "pdf", "-o", str(pdf), str(sch_path)])
     subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     return pdf
 

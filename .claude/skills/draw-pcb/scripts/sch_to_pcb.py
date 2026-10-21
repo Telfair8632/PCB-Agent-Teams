@@ -15,74 +15,34 @@ Usage:
     python sch_to_pcb.py <sch_file> --output <pcb_file>
 """
 
-# -- utf-8 guard: cp936 consoles/pipes cannot encode status glyphs --
+# -- shared environment: pcbenv (workspace root) also applies the utf-8
+#    stdio guard on import, needed under cp936 consoles/pipes --
 import sys as _sys
-for _s in (_sys.stdout, _sys.stderr):
-    if _s is not None and hasattr(_s, "reconfigure"):
-        try:
-            _s.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+from pathlib import Path as _Path
+for _p in _Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
+
 import argparse
-import glob
 import json
-import os
-import re
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# ── KiCad CLI + bundled Python detection ─────────────────────
+# ── KiCad CLI + bundled Python detection (shared: pcbenv) ─────
 
-def _ver_sorted(pattern: str):
-    """Glob with numeric version sort (10.0 ranks above 9.0)."""
-    return sorted(
-        glob.glob(pattern),
-        key=lambda s: [int(t) for t in re.findall(r"\d+", s)],
-    )
-
-
-KICAD_CLI = ""
-for p in [
-    "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-    "/usr/bin/kicad-cli",
-    "/usr/local/bin/kicad-cli",
-    "/snap/kicad/current/bin/kicad-cli",
-]:
-    if Path(p).exists():
-        KICAD_CLI = p
-        break
-if not KICAD_CLI:
-    KICAD_CLI = shutil.which("kicad-cli") or ""
-if not KICAD_CLI:
-    # Windows: KiCad install dirs, newest version first
-    _win_cli = _ver_sorted(r"C:\Program Files\KiCad\*\bin\kicad-cli.exe") + _ver_sorted(r"F:\KiCad\*\bin\kicad-cli.exe") + [r"F:\KiCad\bin\kicad-cli.exe"]
-    for p in _win_cli:
-        KICAD_CLI = p
-        break
-
-KICAD_PYTHON = os.environ.get("KICAD_PYTHON", "")
-if not (KICAD_PYTHON and Path(KICAD_PYTHON).exists()):
-    KICAD_PYTHON = ""
-    for p in [
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9",
-        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.10/bin/python3.10",
-        "/usr/lib/kicad/python3",  # Linux
-    ] + _ver_sorted(r"C:\Program Files\KiCad\*\bin\python.exe") + _ver_sorted(r"F:\KiCad\*\bin\python.exe") + [r"F:\KiCad\bin\python.exe"]:
-        if Path(p).exists():
-            KICAD_PYTHON = p
-            break
-
-KICAD_FP_DIR = Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints")
-if not KICAD_FP_DIR.is_dir():
-    for _d in _ver_sorted(r"C:\Program Files\KiCad\*\share\kicad\footprints") + _ver_sorted(r"F:\KiCad\*\share\kicad\footprints") + [r"F:\KiCad\share\kicad\footprints"]:
-        if Path(_d).is_dir():
-            KICAD_FP_DIR = Path(_d)
-            break
+KICAD_CLI = pcbenv.find_kicad_cli() or ""
+KICAD_PYTHON = pcbenv.find_kicad_python() or ""
+_fp_dir = pcbenv.find_kicad_subdir("footprints")
+KICAD_FP_DIR = _fp_dir if _fp_dir else Path(
+    "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 HELPER_SCRIPT = SCRIPT_DIR / "_kicad_python_helper.py"
@@ -154,9 +114,9 @@ def export_netlist(sch_path: Path, out_path: Path) -> bool:
     if not KICAD_CLI:
         print("❌ kicad-cli not found", file=sys.stderr)
         return False
-    cmd = [KICAD_CLI, "sch", "export", "netlist",
+    cmd = pcbenv.cli_argv(KICAD_CLI, ["sch", "export", "netlist",
            "--format", "kicadsexpr",
-           "-o", str(out_path), str(sch_path)]
+           "-o", str(out_path), str(sch_path)])
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         print(f"❌ netlist export failed: {proc.stderr}", file=sys.stderr)

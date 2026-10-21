@@ -46,6 +46,14 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 V2_SCRIPTS = Path(__file__).resolve().parent
 OLD_SCRIPTS = V2_SCRIPTS  # legacy alias retained for in-script callsites
 
+# Shared environment (workspace root pcbenv): venv layout must follow the
+# host OS — the old hard-coded bin/python broke Windows installs.
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        sys.path.insert(0, str(_p))
+        break
+import pcbenv
+
 sys.path.insert(0, str(V2_SCRIPTS))
 from _dk_throttle import throttled_urlopen as _v2_dk_urlopen  # noqa: E402
 # (sourcing skill removed 2026-05; fetch_datasheet_digikey.py now lives locally)
@@ -63,7 +71,7 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36 component-selecting-JP"
 )
-VENV_PYTHON = WORKSPACE_ROOT / ".venv" / "bin" / "python"
+VENV_PYTHON = Path(pcbenv.venv_python())
 
 GOOD_LIBRARY_STATUSES = {
     "vendored_complete",

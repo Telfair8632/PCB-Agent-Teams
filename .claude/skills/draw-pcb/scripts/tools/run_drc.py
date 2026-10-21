@@ -18,37 +18,22 @@ import subprocess
 import sys
 from pathlib import Path
 
-_KICAD_CLI_CANDIDATES = [
-    "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-    "/usr/bin/kicad-cli",
-    "/usr/local/bin/kicad-cli",
-    "/snap/kicad/current/bin/kicad-cli",
-]
+# Shared environment discovery lives at the workspace root.
+import sys as _sys
+for _p in Path(__file__).resolve().parents:
+    if (_p / "pcbenv.py").is_file():
+        _sys.path.insert(0, str(_p))
+        break
+else:
+    raise ImportError("pcbenv.py not found above " + __file__)
+import pcbenv
 
 # drc_exclusions lives one level up in scripts/.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def _find_kicad_cli() -> str | None:
-    import glob as _glob
-    import os as _os
-    import shutil
-    env_cli = _os.environ.get("KICAD_CLI")
-    if env_cli and Path(env_cli).exists():
-        return env_cli
-    for p in _KICAD_CLI_CANDIDATES:
-        if Path(p).exists():
-            return p
-    cli = shutil.which("kicad-cli")
-    if cli:
-        return cli
-    for pat in (r"C:\Program Files\KiCad\*\bin\kicad-cli.exe",
-                r"F:\KiCad\*\bin\kicad-cli.exe",
-                r"F:\KiCad\bin\kicad-cli.exe"):
-        hits = sorted(_glob.glob(pat))
-        if hits:
-            return hits[-1]
-    return None
+    return pcbenv.find_kicad_cli()
 
 
 def run_drc(pcb_path: str) -> dict:
@@ -69,8 +54,8 @@ def run_drc(pcb_path: str) -> dict:
 
     drc_file = Path(pcb_path).with_suffix(".drc.json")
     try:
-        subprocess.run([cli, "pcb", "drc", "--format", "json",
-                        "-o", str(drc_file), pcb_path],
+        subprocess.run(pcbenv.cli_argv(cli, ["pcb", "drc", "--format", "json",
+                        "-o", str(drc_file), pcb_path]),
                        capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "DRC timed out"}
