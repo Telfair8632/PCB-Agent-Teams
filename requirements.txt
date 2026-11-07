@@ -22,7 +22,7 @@ numpy==2.4.4
 scipy==1.17.1
 shapely==2.1.2
 matplotlib==3.10.9
-pillow==12.2.0
+pillow==13.0.0
 
 # release document generation (PDF / ODT / DOCX / order guide)
 reportlab==4.4.10
